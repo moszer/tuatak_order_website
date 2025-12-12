@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 
@@ -21,10 +21,19 @@ export default function Cart() {
     const [orderSuccess, setOrderSuccess] = useState(false);
     const [tableBill, setTableBill] = useState<TableBill | null>(null);
     const [loadingBill, setLoadingBill] = useState(false);
+    const isSubmittingRef = useRef(false);
     const pathname = usePathname();
 
     // Extract table number from URL (e.g., "/table1" -> "1")
     const tableNumber = pathname?.replace('/table', '') || 'unknown';
+
+    // Reset submitting ref when cart opens
+    useEffect(() => {
+        if (isCartOpen) {
+            isSubmittingRef.current = false;
+            setIsSubmitting(false);
+        }
+    }, [isCartOpen]);
 
     // Fetch table bill when cart opens
     useEffect(() => {
@@ -64,12 +73,16 @@ export default function Cart() {
     const grandTotal = totalPrice + billTotal;
 
     const handleSubmitOrder = async () => {
-        // Prevent multiple submissions
-        if (isSubmitting) {
+        // Prevent multiple submissions using ref (immediate check, no race condition)
+        if (isSubmittingRef.current) {
             return;
         }
 
         if (items.length === 0) return;
+
+        // Set ref immediately to prevent any further clicks
+        isSubmittingRef.current = true;
+        setIsSubmitting(true);
 
         // Check if table is open before submitting order
         try {
@@ -78,15 +91,18 @@ export default function Cart() {
             
             if (!statusData.success || !statusData.isReady) {
                 alert('⚠️ โปรดเปิดโต๊ะก่อนสั่งอาหาร\n\nกรุณาแจ้งพนักงานให้เปิดโต๊ะให้ก่อน');
+                isSubmittingRef.current = false;
+                setIsSubmitting(false);
                 return;
             }
         } catch (error) {
             console.error('Error checking table status:', error);
             alert('⚠️ ไม่สามารถตรวจสอบสถานะโต๊ะได้\n\nกรุณาลองใหม่อีกครั้ง');
+            isSubmittingRef.current = false;
+            setIsSubmitting(false);
             return;
         }
 
-        setIsSubmitting(true);
         try {
             const response = await fetch('/api/orders', {
                 method: 'POST',
@@ -111,15 +127,19 @@ export default function Cart() {
                 setTimeout(() => {
                     setOrderSuccess(false);
                     setIsCartOpen(false);
+                    isSubmittingRef.current = false;
+                    setIsSubmitting(false);
                 }, 2000);
             } else {
                 const errorData = await response.json();
                 alert(errorData.error || 'เกิดข้อผิดพลาดในการสั่งอาหาร');
+                isSubmittingRef.current = false;
+                setIsSubmitting(false);
             }
         } catch (error) {
             console.error('Error submitting order:', error);
             alert('เกิดข้อผิดพลาดในการสั่งอาหาร กรุณาลองใหม่อีกครั้ง');
-        } finally {
+            isSubmittingRef.current = false;
             setIsSubmitting(false);
         }
     };
