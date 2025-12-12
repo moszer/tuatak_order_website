@@ -2,13 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { Order } from '@/lib/mysql';
-import { Image, ImageKitProvider, upload } from '@imagekit/next';
-import {
-  ImageKitAbortError,
-  ImageKitInvalidRequestError,
-  ImageKitServerError,
-  ImageKitUploadNetworkError,
-} from '@imagekit/next';
+import { AddMenuItemModal, EditMenuItemModal } from './components/MenuModals';
+import { MenuItem } from './types';
 import {
   LineChart,
   Line,
@@ -37,19 +32,6 @@ interface OrderWithId extends Order {
     drinkRefillPrice: number;
     totalPrice: number;
   } | null;
-}
-
-interface MenuItem {
-  id: number;
-  name: string;
-  nameTh: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-  isPopular: boolean;
-  isSpicy: boolean;
-  isNew: boolean;
 }
 
 export default function AdminPage() {
@@ -89,7 +71,7 @@ export default function AdminPage() {
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null);
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [tableBills, setTableBills] = useState<Record<string, any>>({});
@@ -103,6 +85,8 @@ export default function AdminPage() {
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
+    // Initialize lastUpdate on client side only
+    setLastUpdate(new Date());
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -727,7 +711,7 @@ export default function AdminPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #2D2520 0%, #3D352E 100%)',
+      background: '#0f0f0f',
       padding: isMobile ? '16px 12px' : '40px 20px'
     }} className="admin-container">
       <style dangerouslySetInnerHTML={{
@@ -826,13 +810,11 @@ export default function AdminPage() {
       }}>
         {/* Top Bar with Tabs and Controls */}
         <div style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(10px)',
+          background: '#1a1a1a',
           borderRadius: isMobile ? '12px' : '16px',
           padding: isMobile ? '16px' : '20px 24px',
           marginBottom: isMobile ? '20px' : '32px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+          border: '1px solid #2a2a2a'
         }} className="admin-top-bar">
           <div style={{
             display: 'flex',
@@ -852,33 +834,29 @@ export default function AdminPage() {
               <button
                 onClick={() => setActiveTab('orders')}
                 style={{
-                  padding: isMobile ? '10px 16px' : '12px 28px',
-                  borderRadius: isMobile ? '10px' : '12px',
+                  padding: isMobile ? '10px 16px' : '12px 24px',
+                  borderRadius: '8px',
                   border: 'none',
-                  background: activeTab === 'orders' 
-                    ? 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)' 
-                    : 'rgba(255, 255, 255, 0.08)',
-                  color: 'white',
+                  background: activeTab === 'orders' ? '#10b981' : '#262626',
+                  color: activeTab === 'orders' ? '#fff' : '#a1a1a1',
                   cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '1rem',
-                  fontWeight: 700,
-                  transition: 'all 0.3s ease',
-                  boxShadow: activeTab === 'orders' 
-                    ? '0 4px 15px rgba(255, 107, 74, 0.4)' 
-                    : 'none',
-                  transform: activeTab === 'orders' ? 'translateY(-2px)' : 'none',
+                  fontSize: isMobile ? '0.85rem' : '0.95rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
                   flex: isMobile ? '1' : 'none',
                   minWidth: isMobile ? '0' : 'auto'
                 }}
                 className="admin-tab-button"
                 onMouseEnter={(e) => {
                   if (activeTab !== 'orders') {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.background = '#333';
+                    e.currentTarget.style.color = '#fff';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (activeTab !== 'orders') {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.background = '#262626';
+                    e.currentTarget.style.color = '#a1a1a1';
                   }
                 }}
               >
@@ -887,33 +865,29 @@ export default function AdminPage() {
               <button
                 onClick={() => setActiveTab('menu')}
                 style={{
-                  padding: isMobile ? '10px 16px' : '12px 28px',
-                  borderRadius: isMobile ? '10px' : '12px',
+                  padding: isMobile ? '10px 16px' : '12px 24px',
+                  borderRadius: '8px',
                   border: 'none',
-                  background: activeTab === 'menu' 
-                    ? 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)' 
-                    : 'rgba(255, 255, 255, 0.08)',
-                  color: 'white',
+                  background: activeTab === 'menu' ? '#10b981' : '#262626',
+                  color: activeTab === 'menu' ? '#fff' : '#a1a1a1',
                   cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '1rem',
-                  fontWeight: 700,
-                  transition: 'all 0.3s ease',
-                  boxShadow: activeTab === 'menu' 
-                    ? '0 4px 15px rgba(255, 107, 74, 0.4)' 
-                    : 'none',
-                  transform: activeTab === 'menu' ? 'translateY(-2px)' : 'none',
+                  fontSize: isMobile ? '0.85rem' : '0.95rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
                   flex: isMobile ? '1' : 'none',
                   minWidth: isMobile ? '0' : 'auto'
                 }}
                 className="admin-tab-button"
                 onMouseEnter={(e) => {
                   if (activeTab !== 'menu') {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.background = '#333';
+                    e.currentTarget.style.color = '#fff';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (activeTab !== 'menu') {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.background = '#262626';
+                    e.currentTarget.style.color = '#a1a1a1';
                   }
                 }}
               >
@@ -922,33 +896,29 @@ export default function AdminPage() {
               <button
                 onClick={() => setActiveTab('tables')}
                 style={{
-                  padding: isMobile ? '10px 16px' : '12px 28px',
-                  borderRadius: isMobile ? '10px' : '12px',
+                  padding: isMobile ? '10px 16px' : '12px 24px',
+                  borderRadius: '8px',
                   border: 'none',
-                  background: activeTab === 'tables' 
-                    ? 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)' 
-                    : 'rgba(255, 255, 255, 0.08)',
-                  color: 'white',
+                  background: activeTab === 'tables' ? '#10b981' : '#262626',
+                  color: activeTab === 'tables' ? '#fff' : '#a1a1a1',
                   cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '1rem',
-                  fontWeight: 700,
-                  transition: 'all 0.3s ease',
-                  boxShadow: activeTab === 'tables' 
-                    ? '0 4px 15px rgba(255, 107, 74, 0.4)' 
-                    : 'none',
-                  transform: activeTab === 'tables' ? 'translateY(-2px)' : 'none',
+                  fontSize: isMobile ? '0.85rem' : '0.95rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
                   flex: isMobile ? '1' : 'none',
                   minWidth: isMobile ? '0' : 'auto'
                 }}
                 className="admin-tab-button"
                 onMouseEnter={(e) => {
                   if (activeTab !== 'tables') {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.background = '#333';
+                    e.currentTarget.style.color = '#fff';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (activeTab !== 'tables') {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.background = '#262626';
+                    e.currentTarget.style.color = '#a1a1a1';
                   }
                 }}
               >
@@ -957,33 +927,29 @@ export default function AdminPage() {
               <button
                 onClick={() => setActiveTab('cashflow')}
                 style={{
-                  padding: isMobile ? '10px 16px' : '12px 28px',
-                  borderRadius: isMobile ? '10px' : '12px',
+                  padding: isMobile ? '10px 16px' : '12px 24px',
+                  borderRadius: '8px',
                   border: 'none',
-                  background: activeTab === 'cashflow' 
-                    ? 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)' 
-                    : 'rgba(255, 255, 255, 0.08)',
-                  color: 'white',
+                  background: activeTab === 'cashflow' ? '#10b981' : '#262626',
+                  color: activeTab === 'cashflow' ? '#fff' : '#a1a1a1',
                   cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '1rem',
-                  fontWeight: 700,
-                  transition: 'all 0.3s ease',
-                  boxShadow: activeTab === 'cashflow' 
-                    ? '0 4px 15px rgba(255, 107, 74, 0.4)' 
-                    : 'none',
-                  transform: activeTab === 'cashflow' ? 'translateY(-2px)' : 'none',
+                  fontSize: isMobile ? '0.85rem' : '0.95rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
                   flex: isMobile ? '1' : 'none',
                   minWidth: isMobile ? '0' : 'auto'
                 }}
                 className="admin-tab-button"
                 onMouseEnter={(e) => {
                   if (activeTab !== 'cashflow') {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.background = '#333';
+                    e.currentTarget.style.color = '#fff';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (activeTab !== 'cashflow') {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.background = '#262626';
+                    e.currentTarget.style.color = '#a1a1a1';
                   }
                 }}
               >
@@ -1003,34 +969,34 @@ export default function AdminPage() {
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '6px' : '8px',
-                padding: isMobile ? '6px 12px' : '8px 16px',
-                background: 'rgba(76, 175, 80, 0.15)',
-                borderRadius: isMobile ? '8px' : '10px',
-                border: '1px solid rgba(76, 175, 80, 0.3)',
+                gap: '8px',
+                padding: '8px 16px',
+                background: '#1a1a1a',
+                borderRadius: '8px',
+                border: '1px solid #2a2a2a',
                 flex: isMobile ? '1' : 'none'
               }}>
                 <div style={{
-                  width: isMobile ? '6px' : '8px',
-                  height: isMobile ? '6px' : '8px',
+                  width: '8px',
+                  height: '8px',
                   borderRadius: '50%',
-                  background: '#4CAF50',
-                  boxShadow: '0 0 8px rgba(76, 175, 80, 0.6)',
+                  background: '#10b981',
+                  boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)',
                   animation: 'pulse 2s infinite',
                   flexShrink: 0
                 }} />
                 <p style={{
-                  color: '#4CAF50',
-                  fontSize: isMobile ? '0.75rem' : '0.85rem',
+                  color: '#10b981',
+                  fontSize: '0.85rem',
                   margin: 0,
                   fontWeight: 600
                 }}>
                   ออนไลน์
                 </p>
-                {!isMobile && (
+                {!isMobile && lastUpdate && (
                   <span style={{
-                    color: '#8B7355',
-                    fontSize: isMobile ? '0.7rem' : '0.8rem',
+                    color: '#737373',
+                    fontSize: '0.8rem',
                     marginLeft: '4px'
                   }}>
                     {lastUpdate.toLocaleTimeString('th-TH')}
@@ -1045,35 +1011,36 @@ export default function AdminPage() {
                   }
                 }}
                 style={{
-                  padding: isMobile ? '8px 12px' : '10px 16px',
-                  borderRadius: isMobile ? '8px' : '10px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: soundEnabled 
-                    ? 'linear-gradient(135deg, rgba(255, 107, 74, 0.3) 0%, rgba(255, 140, 105, 0.2) 100%)' 
-                    : 'rgba(255, 255, 255, 0.08)',
-                  color: 'white',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid #2a2a2a',
+                  background: soundEnabled ? '#10b981' : '#262626',
+                  color: soundEnabled ? '#fff' : '#a1a1a1',
                   cursor: 'pointer',
-                  fontSize: isMobile ? '0.8rem' : '0.9rem',
+                  fontSize: '0.85rem',
                   fontWeight: 600,
-                  transition: 'all 0.3s ease',
+                  transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: isMobile ? '6px' : '8px',
-                  boxShadow: soundEnabled ? '0 2px 8px rgba(255, 107, 74, 0.2)' : 'none',
+                  gap: '8px',
                   minWidth: isMobile ? 'auto' : '120px',
                   justifyContent: 'center'
                 }}
                 title={soundEnabled ? 'ปิดเสียงแจ้งเตือน' : 'เปิดเสียงแจ้งเตือน'}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 107, 74, 0.3)';
+                  if (!soundEnabled) {
+                    e.currentTarget.style.background = '#333';
+                    e.currentTarget.style.color = '#fff';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = soundEnabled ? '0 2px 8px rgba(255, 107, 74, 0.2)' : 'none';
+                  if (!soundEnabled) {
+                    e.currentTarget.style.background = '#262626';
+                    e.currentTarget.style.color = '#a1a1a1';
+                  }
                 }}
               >
-                <span style={{ fontSize: isMobile ? '1rem' : '1.1rem' }}>{soundEnabled ? '🔔' : '🔕'}</span>
+                <span style={{ fontSize: '1rem' }}>{soundEnabled ? '🔔' : '🔕'}</span>
                 {!isMobile && (
                   <span>{soundEnabled ? 'เปิดเสียง' : 'ปิดเสียง'}</span>
                 )}
@@ -1089,204 +1056,104 @@ export default function AdminPage() {
         <div style={{
           display: 'grid',
           gridTemplateColumns: isMobile 
-            ? '1fr' 
-            : 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: isMobile ? '12px' : '20px',
-          marginBottom: isMobile ? '20px' : '32px'
+            ? '1fr 1fr' 
+            : 'repeat(4, 1fr)',
+          gap: '16px',
+          marginBottom: '24px'
         }} className="admin-stats-grid">
           <div style={{
-            background: 'linear-gradient(135deg, rgba(255, 107, 74, 0.15) 0%, rgba(255, 140, 105, 0.1) 100%)',
-            borderRadius: isMobile ? '16px' : '20px',
-            padding: isMobile ? '20px' : '28px',
-            border: '1px solid rgba(255, 107, 74, 0.3)',
-            boxShadow: '0 8px 24px rgba(255, 107, 74, 0.15)',
-            transition: 'all 0.3s ease',
-            position: 'relative',
-            overflow: 'hidden'
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            padding: '24px',
+            border: '1px solid #2a2a2a'
           }}
           className="admin-stat-card"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 32px rgba(255, 107, 74, 0.25)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 107, 74, 0.15)';
-          }}
           >
-            <div style={{
-              position: 'absolute',
-              top: '-20px',
-              right: '-20px',
-              width: '100px',
-              height: '100px',
-              background: 'rgba(255, 107, 74, 0.1)',
-              borderRadius: '50%',
-              filter: 'blur(20px)'
-            }} />
             <div style={{ 
-              color: '#FF6B4A', 
+              color: '#f97316', 
               fontSize: '2.5rem', 
-              fontWeight: 800,
+              fontWeight: 700,
               marginBottom: '8px',
-              position: 'relative',
-              zIndex: 1
+              fontFamily: 'system-ui, -apple-system, sans-serif'
             }}>
               {pendingCount}
             </div>
             <div style={{ 
-              color: '#E0E0E0', 
-              fontSize: '1rem', 
-              fontWeight: 600,
-              position: 'relative',
-              zIndex: 1
+              color: '#a1a1a1', 
+              fontSize: '0.9rem', 
+              fontWeight: 500
             }}>
               ⏳ รอดำเนินการ
             </div>
           </div>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(255, 165, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%)',
-            borderRadius: '20px',
-            padding: '28px',
-            border: '1px solid rgba(255, 165, 0, 0.3)',
-            boxShadow: '0 8px 24px rgba(255, 165, 0, 0.15)',
-            transition: 'all 0.3s ease',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 32px rgba(255, 165, 0, 0.25)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 165, 0, 0.15)';
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            padding: '24px',
+            border: '1px solid #2a2a2a'
           }}
           >
-            <div style={{
-              position: 'absolute',
-              top: '-20px',
-              right: '-20px',
-              width: '100px',
-              height: '100px',
-              background: 'rgba(255, 165, 0, 0.1)',
-              borderRadius: '50%',
-              filter: 'blur(20px)'
-            }} />
             <div style={{ 
-              color: '#FFA500', 
+              color: '#eab308', 
               fontSize: '2.5rem', 
-              fontWeight: 800,
+              fontWeight: 700,
               marginBottom: '8px',
-              position: 'relative',
-              zIndex: 1
+              fontFamily: 'system-ui, -apple-system, sans-serif'
             }}>
               {preparingCount}
             </div>
             <div style={{ 
-              color: '#E0E0E0', 
-              fontSize: '1rem', 
-              fontWeight: 600,
-              position: 'relative',
-              zIndex: 1
+              color: '#a1a1a1', 
+              fontSize: '0.9rem', 
+              fontWeight: 500
             }}>
               🔥 กำลังเตรียม
             </div>
           </div>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(129, 199, 132, 0.1) 100%)',
-            borderRadius: '20px',
-            padding: '28px',
-            border: '1px solid rgba(76, 175, 80, 0.3)',
-            boxShadow: '0 8px 24px rgba(76, 175, 80, 0.15)',
-            transition: 'all 0.3s ease',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 32px rgba(76, 175, 80, 0.25)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 24px rgba(76, 175, 80, 0.15)';
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            padding: '24px',
+            border: '1px solid #2a2a2a'
           }}
           >
-            <div style={{
-              position: 'absolute',
-              top: '-20px',
-              right: '-20px',
-              width: '100px',
-              height: '100px',
-              background: 'rgba(76, 175, 80, 0.1)',
-              borderRadius: '50%',
-              filter: 'blur(20px)'
-            }} />
             <div style={{ 
-              color: '#4CAF50', 
+              color: '#10b981', 
               fontSize: '2.5rem', 
-              fontWeight: 800,
+              fontWeight: 700,
               marginBottom: '8px',
-              position: 'relative',
-              zIndex: 1
+              fontFamily: 'system-ui, -apple-system, sans-serif'
             }}>
               {readyCount}
             </div>
             <div style={{ 
-              color: '#E0E0E0', 
-              fontSize: '1rem', 
-              fontWeight: 600,
-              position: 'relative',
-              zIndex: 1
+              color: '#a1a1a1', 
+              fontSize: '0.9rem', 
+              fontWeight: 500
             }}>
               ✅ พร้อมเสิร์ฟ
             </div>
           </div>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(156, 39, 176, 0.15) 0%, rgba(186, 104, 200, 0.1) 100%)',
-            borderRadius: '20px',
-            padding: '28px',
-            border: '1px solid rgba(156, 39, 176, 0.3)',
-            boxShadow: '0 8px 24px rgba(156, 39, 176, 0.15)',
-            transition: 'all 0.3s ease',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 32px rgba(156, 39, 176, 0.25)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 24px rgba(156, 39, 176, 0.15)';
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            padding: '24px',
+            border: '1px solid #2a2a2a'
           }}
           >
-            <div style={{
-              position: 'absolute',
-              top: '-20px',
-              right: '-20px',
-              width: '100px',
-              height: '100px',
-              background: 'rgba(156, 39, 176, 0.1)',
-              borderRadius: '50%',
-              filter: 'blur(20px)'
-            }} />
             <div style={{ 
-              color: '#9C27B0', 
-              fontSize: '2.2rem', 
-              fontWeight: 800,
+              color: '#a855f7', 
+              fontSize: '2rem', 
+              fontWeight: 700,
               marginBottom: '8px',
-              position: 'relative',
-              zIndex: 1
+              fontFamily: 'system-ui, -apple-system, sans-serif'
             }}>
               ฿{totalRevenue.toLocaleString()}
             </div>
             <div style={{ 
-              color: '#E0E0E0', 
-              fontSize: '1rem', 
-              fontWeight: 600,
-              position: 'relative',
-              zIndex: 1
+              color: '#a1a1a1', 
+              fontSize: '0.9rem', 
+              fontWeight: 500
             }}>
               💰 รายได้รวม
             </div>
@@ -1304,7 +1171,7 @@ export default function AdminPage() {
         }}>
           <div style={{
             display: 'flex',
-            gap: '12px',
+            gap: '8px',
             flexWrap: 'wrap'
           }}>
           {['all', 'pending', 'preparing', 'ready', 'served', 'paid'].map((status) => (
@@ -1312,17 +1179,15 @@ export default function AdminPage() {
               key={status}
               onClick={() => setFilterStatus(status)}
               style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                background: filterStatus === status 
-                  ? '#FF6B4A' 
-                  : 'rgba(255, 255, 255, 0.08)',
-                color: 'white',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid #2a2a2a',
+                background: filterStatus === status ? '#10b981' : '#1a1a1a',
+                color: filterStatus === status ? '#fff' : '#a1a1a1',
                 cursor: 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                transition: 'all 0.3s ease'
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                transition: 'all 0.2s ease'
               }}
             >
               {status === 'all' ? 'ทั้งหมด' : getStatusLabel(status as Order['status'])}
@@ -1333,26 +1198,22 @@ export default function AdminPage() {
             onClick={() => fetchOrders()}
             disabled={loading || isRefreshing}
             style={{
-              padding: '12px 24px',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              background: (loading || isRefreshing) 
-                ? 'rgba(255, 255, 255, 0.05)' 
-                : 'linear-gradient(135deg, rgba(255, 107, 74, 0.2) 0%, rgba(255, 140, 105, 0.15) 100%)',
-              color: 'white',
+              padding: '10px 20px',
+              borderRadius: '8px',
+              border: '1px solid #2a2a2a',
+              background: (loading || isRefreshing) ? '#1a1a1a' : '#262626',
+              color: (loading || isRefreshing) ? '#737373' : '#fff',
               cursor: (loading || isRefreshing) ? 'not-allowed' : 'pointer',
-              fontSize: '0.9rem',
-              fontWeight: 600,
-              transition: 'all 0.3s ease',
-              opacity: (loading || isRefreshing) ? 0.6 : 1,
+              fontSize: '0.85rem',
+              fontWeight: 500,
+              transition: 'all 0.2s ease',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              boxShadow: (loading || isRefreshing) ? 'none' : '0 2px 8px rgba(255, 107, 74, 0.2)'
+              gap: '8px'
             }}
             onMouseEnter={(e) => {
               if (!loading && !isRefreshing) {
-                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.background = '#333';
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 107, 74, 0.3)';
               }
             }}
@@ -1450,23 +1311,17 @@ export default function AdminPage() {
                       <div
                         key={tableNum}
                         style={{
-                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                          backdropFilter: 'blur(10px)',
-                          borderRadius: '24px',
-                          padding: '28px',
-                          border: '2px solid rgba(255, 107, 74, 0.3)',
-                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-                          transition: 'all 0.3s ease'
+                          background: '#1a1a1a',
+                          borderRadius: '16px',
+                          padding: '24px',
+                          border: '1px solid #2a2a2a',
+                          transition: 'all 0.2s ease'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 12px 40px rgba(255, 107, 74, 0.3)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 107, 74, 0.5)';
+                          e.currentTarget.style.borderColor = '#10b981';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 107, 74, 0.3)';
+                          e.currentTarget.style.borderColor = '#2a2a2a';
                         }}
                       >
                         {/* Table Header */}
@@ -1476,21 +1331,21 @@ export default function AdminPage() {
                           alignItems: 'center',
                           marginBottom: '20px',
                           paddingBottom: '16px',
-                          borderBottom: '2px solid rgba(255, 107, 74, 0.3)'
+                          borderBottom: '1px solid #2a2a2a'
                         }}>
                           <div>
                             <h3 style={{
-                              color: 'white',
-                              fontSize: '1.8rem',
-                              fontWeight: 800,
+                              color: '#fff',
+                              fontSize: '1.5rem',
+                              fontWeight: 700,
                               margin: 0,
                               marginBottom: '4px'
                             }}>
                               🪑 โต๊ะ {tableNum}
                             </h3>
                             <p style={{
-                              color: '#8B7355',
-                              fontSize: '0.9rem',
+                              color: '#737373',
+                              fontSize: '0.85rem',
                               margin: 0
                             }}>
                               {tableOrders.length > 0 ? `${tableOrders.length} คำสั่งซื้อ` : 'รอคำสั่งซื้อ'}
@@ -1500,15 +1355,15 @@ export default function AdminPage() {
                             textAlign: 'right'
                           }}>
                             <div style={{
-                              color: '#FF6B4A',
-                              fontSize: '2rem',
-                              fontWeight: 800
+                              color: '#10b981',
+                              fontSize: '1.5rem',
+                              fontWeight: 700
                             }}>
                               ฿{tableGrandTotal.toLocaleString()}
                             </div>
                             <div style={{
-                              color: '#8B7355',
-                              fontSize: '0.85rem'
+                              color: '#737373',
+                              fontSize: '0.8rem'
                             }}>
                               รวมทั้งหมด
                             </div>
@@ -1520,14 +1375,14 @@ export default function AdminPage() {
                           <div style={{
                             marginBottom: '20px',
                             padding: '16px',
-                            background: 'rgba(255, 107, 74, 0.15)',
+                            background: '#262626',
                             borderRadius: '12px',
-                            border: '1px solid rgba(255, 107, 74, 0.3)'
+                            border: '1px solid #333'
                           }}>
                             <div style={{
-                              color: '#FF6B4A',
-                              fontSize: '1.1rem',
-                              fontWeight: 700,
+                              color: '#a855f7',
+                              fontSize: '1rem',
+                              fontWeight: 600,
                               marginBottom: '12px'
                             }}>
                               💰 บิลบุฟเฟ่ต์
@@ -1536,8 +1391,8 @@ export default function AdminPage() {
                               display: 'grid',
                               gridTemplateColumns: 'repeat(2, 1fr)',
                               gap: '8px',
-                              fontSize: '0.9rem',
-                              color: '#E0E0E0',
+                              fontSize: '0.85rem',
+                              color: '#a1a1a1',
                               marginBottom: '12px'
                             }}>
                               {tableBill.adultCount > 0 && (
@@ -1566,20 +1421,20 @@ export default function AdminPage() {
                               justifyContent: 'space-between',
                               alignItems: 'center',
                               paddingTop: '12px',
-                              borderTop: '1px solid rgba(255, 107, 74, 0.2)',
+                              borderTop: '1px solid #333',
                               marginBottom: '12px'
                             }}>
                               <span style={{
-                                color: 'white',
-                                fontSize: '1rem',
-                                fontWeight: 700
+                                color: '#fff',
+                                fontSize: '0.95rem',
+                                fontWeight: 600
                               }}>
                                 รวมบิลบุฟเฟ่ต์:
                               </span>
                               <span style={{
-                                color: '#FF6B4A',
-                                fontSize: '1.3rem',
-                                fontWeight: 800
+                                color: '#a855f7',
+                                fontSize: '1.2rem',
+                                fontWeight: 700
                               }}>
                                 ฿{tableBill.totalPrice.toLocaleString()}
                               </span>
@@ -1592,24 +1447,21 @@ export default function AdminPage() {
                               }}
                               style={{
                                 width: '100%',
-                                padding: '14px',
-                                borderRadius: '12px',
+                                padding: '12px',
+                                borderRadius: '8px',
                                 border: 'none',
-                                background: 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)',
+                                background: '#10b981',
                                 color: 'white',
                                 cursor: 'pointer',
-                                fontSize: '1.1rem',
-                                fontWeight: 700,
-                                boxShadow: '0 4px 15px rgba(255, 107, 74, 0.3)',
-                                transition: 'all 0.3s ease'
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                transition: 'all 0.2s ease'
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 107, 74, 0.4)';
+                                e.currentTarget.style.background = '#059669';
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 4px 15px rgba(255, 107, 74, 0.3)';
+                                e.currentTarget.style.background = '#10b981';
                               }}
                             >
                               ✅ เช็คบิล (฿{tableGrandTotal.toLocaleString()})
@@ -1627,13 +1479,12 @@ export default function AdminPage() {
               <div
                 key={order._id}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  borderRadius: '16px',
-                  padding: '24px',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: '#262626',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  border: '1px solid #333',
                   cursor: 'pointer',
-                  transition: 'opacity 0.2s ease, transform 0.2s ease',
-                  willChange: 'opacity, transform'
+                  transition: 'all 0.2s ease'
                 }}
                 onClick={() => setSelectedOrder(order)}
               >
@@ -1641,29 +1492,29 @@ export default function AdminPage() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'flex-start',
-                  marginBottom: '16px'
+                  marginBottom: '12px'
                 }}>
                   <div>
                     <div style={{
-                      color: '#8B7355',
-                      fontSize: '0.85rem',
+                      color: '#737373',
+                      fontSize: '0.8rem',
                       marginBottom: '4px'
                     }}>
                       คำสั่งซื้อ #{order._id}
                     </div>
                     <div style={{
-                      color: '#8B7355',
-                      fontSize: '0.9rem'
+                      color: '#737373',
+                      fontSize: '0.8rem'
                     }}>
                       {new Date(order.createdAt).toLocaleString('th-TH')}
                     </div>
                   </div>
                   <div style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
                     background: getStatusColor(order.status),
                     color: 'white',
-                    fontSize: '0.85rem',
+                    fontSize: '0.8rem',
                     fontWeight: 600
                   }}>
                     {getStatusLabel(order.status)}
@@ -1674,13 +1525,13 @@ export default function AdminPage() {
                 {/* Order Items */}
                 {order.items && order.items.length > 0 && (
                   <div style={{
-                    marginBottom: '16px'
+                    marginBottom: '12px'
                   }}>
                     <div style={{
-                      color: '#FF6B4A',
-                      fontSize: '1rem',
-                      fontWeight: 700,
-                      marginBottom: '12px'
+                      color: '#f97316',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      marginBottom: '10px'
                     }}>
                       🍽️ รายการอาหาร
                     </div>
@@ -1690,16 +1541,16 @@ export default function AdminPage() {
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          color: '#E0E0E0',
-                          fontSize: '0.95rem',
-                          marginBottom: '8px',
-                          paddingLeft: '12px'
+                          color: '#d4d4d4',
+                          fontSize: '0.85rem',
+                          marginBottom: '6px',
+                          paddingLeft: '8px'
                         }}
                       >
                         <span>
                           {item.nameTh} x{item.quantity}
                           {item.comment && (
-                            <span style={{ color: '#DC2626', fontSize: '0.85rem', marginLeft: '8px' }}>
+                            <span style={{ color: '#ef4444', fontSize: '0.8rem', marginLeft: '6px' }}>
                               ({item.comment})
                             </span>
                           )}
@@ -1714,14 +1565,14 @@ export default function AdminPage() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  paddingTop: '16px',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+                  paddingTop: '12px',
+                  borderTop: '1px solid #333'
                 }}>
                   <div>
                     <div style={{
-                      color: 'white',
-                      fontSize: '1.2rem',
-                      fontWeight: 700,
+                      color: '#fff',
+                      fontSize: '1rem',
+                      fontWeight: 600,
                       marginBottom: order.bill ? '4px' : '0'
                     }}>
                       รวมอาหาร: ฿{order.totalPrice.toLocaleString()}
@@ -1737,14 +1588,14 @@ export default function AdminPage() {
                         setSelectedOrder(order);
                       }}
                       style={{
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: '#FF6B4A',
-                        color: 'white',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #333',
+                        background: '#262626',
+                        color: '#fff',
                         cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        fontWeight: 600
+                        fontSize: '0.8rem',
+                        fontWeight: 500
                       }}
                     >
                       อัปเดตสถานะ
@@ -1755,14 +1606,14 @@ export default function AdminPage() {
                         setOrderToDelete(order);
                       }}
                       style={{
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: '#DC2626',
-                        color: 'white',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #dc2626',
+                        background: 'transparent',
+                        color: '#ef4444',
                         cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        fontWeight: 600
+                        fontSize: '0.8rem',
+                        fontWeight: 500
                       }}
                     >
                       🗑️ ลบ
@@ -1776,8 +1627,8 @@ export default function AdminPage() {
                           <div style={{
                             textAlign: 'center',
                             padding: '24px',
-                            color: '#8B7355',
-                            fontSize: '0.95rem'
+                            color: '#737373',
+                            fontSize: '0.9rem'
                           }}>
                             ยังไม่มีคำสั่งซื้อ
                           </div>
@@ -1805,38 +1656,35 @@ export default function AdminPage() {
               gap: '12px'
             }}>
               <h2 style={{
-                color: 'white',
-                fontSize: '1.5rem',
-                fontWeight: 700
+                color: '#fff',
+                fontSize: '1.25rem',
+                fontWeight: 600
               }}>
                 จัดการเมนูและราคา
               </h2>
               <div style={{
                 display: 'flex',
-                gap: '12px',
+                gap: '10px',
                 flexWrap: 'wrap'
               }}>
                 <button
                   onClick={() => setShowAddMenuModal(true)}
                   style={{
-                    padding: '10px 20px',
+                    padding: '10px 18px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)',
+                    background: '#10b981',
                     color: 'white',
                     cursor: 'pointer',
-                    fontSize: '0.9rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600,
-                    boxShadow: '0 4px 12px rgba(255, 107, 74, 0.3)',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 107, 74, 0.4)';
+                    e.currentTarget.style.background = '#059669';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 107, 74, 0.3)';
+                    e.currentTarget.style.background = '#10b981';
                   }}
                 >
                   ➕ เพิ่มเมนู
@@ -1845,15 +1693,14 @@ export default function AdminPage() {
                   onClick={fetchMenuItems}
                   disabled={menuLoading}
                   style={{
-                    padding: '10px 20px',
+                    padding: '10px 18px',
                     borderRadius: '8px',
-                    border: 'none',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    color: 'white',
+                    border: '1px solid #2a2a2a',
+                    background: '#262626',
+                    color: menuLoading ? '#737373' : '#fff',
                     cursor: menuLoading ? 'not-allowed' : 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    opacity: menuLoading ? 0.6 : 1
+                    fontSize: '0.85rem',
+                    fontWeight: 500
                   }}
                 >
                   🔄 รีเฟรช
@@ -1864,77 +1711,78 @@ export default function AdminPage() {
             {menuLoading ? (
               <div style={{
                 textAlign: 'center',
-                color: 'white',
+                color: '#a1a1a1',
                 padding: '40px',
-                fontSize: '1.2rem'
+                fontSize: '1rem'
               }}>
                 กำลังโหลด...
               </div>
             ) : menuItems.length === 0 ? (
               <div style={{
                 textAlign: 'center',
-                color: '#8B7355',
+                color: '#737373',
                 padding: '40px',
-                fontSize: '1.1rem'
+                fontSize: '1rem'
               }}>
                 ไม่มีรายการเมนู
               </div>
             ) : (
               <div style={{
                 display: 'grid',
-                gap: '16px'
+                gap: '12px'
               }}>
                 {menuItems.map((item) => (
                   <div
                     key={item.id}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      borderRadius: '16px',
-                      padding: '24px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                      background: '#1a1a1a',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      border: '1px solid #2a2a2a'
                     }}
                   >
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'flex-start',
-                      marginBottom: '16px'
+                      marginBottom: '12px'
                     }}>
                       <div style={{ flex: 1 }}>
                         <div style={{
-                          color: 'white',
-                          fontSize: '1.2rem',
-                          fontWeight: 700,
+                          color: '#fff',
+                          fontSize: '1.1rem',
+                          fontWeight: 600,
                           marginBottom: '4px'
                         }}>
                           {item.nameTh}
                         </div>
                         <div style={{
-                          color: '#8B7355',
-                          fontSize: '0.9rem',
-                          marginBottom: '8px'
+                          color: '#737373',
+                          fontSize: '0.85rem',
+                          marginBottom: '6px'
                         }}>
                           {item.name}
                         </div>
                         <div style={{
-                          color: '#E0E0E0',
-                          fontSize: '0.85rem',
+                          color: '#a1a1a1',
+                          fontSize: '0.8rem',
                           marginBottom: '8px'
                         }}>
                           {item.description}
                         </div>
                         <div style={{
                           display: 'flex',
-                          gap: '8px',
+                          gap: '6px',
                           flexWrap: 'wrap',
                           marginTop: '8px'
                         }}>
                           <span style={{
                             padding: '4px 8px',
                             borderRadius: '4px',
-                            background: 'rgba(255, 107, 74, 0.2)',
-                            color: '#FF6B4A',
-                            fontSize: '0.75rem'
+                            background: '#262626',
+                            color: '#f97316',
+                            fontSize: '0.7rem',
+                            border: '1px solid #333'
                           }}>
                             {item.category}
                           </span>
@@ -1942,9 +1790,10 @@ export default function AdminPage() {
                             <span style={{
                               padding: '4px 8px',
                               borderRadius: '4px',
-                              background: 'rgba(255, 165, 0, 0.2)',
-                              color: '#FFA500',
-                              fontSize: '0.75rem'
+                              background: '#262626',
+                              color: '#eab308',
+                              fontSize: '0.7rem',
+                              border: '1px solid #333'
                             }}>
                               ⭐ ยอดนิยม
                             </span>
@@ -1953,9 +1802,10 @@ export default function AdminPage() {
                             <span style={{
                               padding: '4px 8px',
                               borderRadius: '4px',
-                              background: 'rgba(255, 0, 0, 0.2)',
-                              color: '#FF4444',
-                              fontSize: '0.75rem'
+                              background: '#262626',
+                              color: '#ef4444',
+                              fontSize: '0.7rem',
+                              border: '1px solid #333'
                             }}>
                               🌶️ เผ็ด
                             </span>
@@ -1964,9 +1814,10 @@ export default function AdminPage() {
                             <span style={{
                               padding: '4px 8px',
                               borderRadius: '4px',
-                              background: 'rgba(76, 175, 80, 0.2)',
-                              color: '#4CAF50',
-                              fontSize: '0.75rem'
+                              background: '#262626',
+                              color: '#10b981',
+                              fontSize: '0.7rem',
+                              border: '1px solid #333'
                             }}>
                               🆕 ใหม่
                             </span>
@@ -1980,9 +1831,9 @@ export default function AdminPage() {
                         gap: '8px'
                       }}>
                         <div style={{
-                          color: '#FF6B4A',
-                          fontSize: '1.5rem',
-                          fontWeight: 700
+                          color: '#10b981',
+                          fontSize: '1.3rem',
+                          fontWeight: 600
                         }}>
                           ฿{item.price === 0 ? '0 (บุฟเฟ่ต์)' : item.price.toLocaleString()}
                         </div>
@@ -1993,14 +1844,14 @@ export default function AdminPage() {
                           <button
                             onClick={() => setSelectedMenuItem(item)}
                             style={{
-                              padding: '8px 16px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              background: '#FF6B4A',
-                              color: 'white',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              border: '1px solid #333',
+                              background: '#262626',
+                              color: '#fff',
                               cursor: 'pointer',
-                              fontSize: '0.9rem',
-                              fontWeight: 600
+                              fontSize: '0.8rem',
+                              fontWeight: 500
                             }}
                           >
                             ✏️ แก้ไข
@@ -2012,14 +1863,14 @@ export default function AdminPage() {
                               }
                             }}
                             style={{
-                              padding: '8px 16px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              background: '#DC2626',
-                              color: 'white',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              border: '1px solid #dc2626',
+                              background: 'transparent',
+                              color: '#ef4444',
                               cursor: 'pointer',
-                              fontSize: '0.9rem',
-                              fontWeight: 600
+                              fontSize: '0.8rem',
+                              fontWeight: 500
                             }}
                           >
                             🗑️ ลบ
@@ -2046,9 +1897,9 @@ export default function AdminPage() {
               gap: '12px'
             }}>
               <h2 style={{
-                color: 'white',
-                fontSize: '1.5rem',
-                fontWeight: 700
+                color: '#fff',
+                fontSize: '1.25rem',
+                fontWeight: 600
               }}>
                 จัดการสถานะโต๊ะ
               </h2>
@@ -2056,15 +1907,14 @@ export default function AdminPage() {
                 onClick={fetchTableStatuses}
                 disabled={tablesLoading}
                 style={{
-                  padding: '10px 20px',
+                  padding: '10px 18px',
                   borderRadius: '8px',
-                  border: 'none',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: 'white',
+                  border: '1px solid #2a2a2a',
+                  background: '#262626',
+                  color: tablesLoading ? '#737373' : '#fff',
                   cursor: tablesLoading ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  opacity: tablesLoading ? 0.6 : 1
+                  fontSize: '0.85rem',
+                  fontWeight: 500
                 }}
               >
                 🔄 รีเฟรช
@@ -2073,120 +1923,120 @@ export default function AdminPage() {
 
             {/* Buffet Pricing Information */}
             <div style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              borderRadius: '16px',
-              padding: '32px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              marginBottom: '32px'
+              background: '#1a1a1a',
+              borderRadius: '12px',
+              padding: '24px',
+              border: '1px solid #2a2a2a',
+              marginBottom: '24px'
             }}>
               <h3 style={{
-                color: 'white',
-                fontSize: '1.3rem',
-                fontWeight: 700,
-                marginBottom: '24px',
+                color: '#fff',
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                marginBottom: '20px',
                 textAlign: 'center'
               }}>
                 💰 ราคาบุฟเฟ่ต์
               </h3>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                gap: '20px'
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '12px'
               }}>
                 <div style={{
-                  padding: '20px',
-                  background: 'rgba(255, 107, 74, 0.1)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 107, 74, 0.3)'
+                  padding: '16px',
+                  background: '#262626',
+                  borderRadius: '10px',
+                  border: '1px solid #333'
                 }}>
                   <div style={{
-                    color: '#FF6B4A',
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    marginBottom: '8px'
+                    color: '#f97316',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    marginBottom: '6px'
                   }}>
                     👤 ราคาผู้ใหญ่
                   </div>
                   <div style={{
-                    color: 'white',
-                    fontSize: '1.5rem',
-                    fontWeight: 800
+                    color: '#fff',
+                    fontSize: '1.3rem',
+                    fontWeight: 600
                   }}>
                     ท่านละ 199.-
                   </div>
                 </div>
 
                 <div style={{
-                  padding: '20px',
-                  background: 'rgba(76, 175, 80, 0.1)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(76, 175, 80, 0.3)'
+                  padding: '16px',
+                  background: '#262626',
+                  borderRadius: '10px',
+                  border: '1px solid #333'
                 }}>
                   <div style={{
-                    color: '#4CAF50',
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    marginBottom: '8px'
+                    color: '#10b981',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    marginBottom: '6px'
                   }}>
                     🥤 น้ำรีฟิลเติมสะใจ!
                   </div>
                   <div style={{
-                    color: 'white',
-                    fontSize: '1.5rem',
-                    fontWeight: 800
+                    color: '#fff',
+                    fontSize: '1.3rem',
+                    fontWeight: 600
                   }}>
                     39.-
                   </div>
                 </div>
 
                 <div style={{
-                  padding: '20px',
-                  background: 'rgba(255, 165, 0, 0.1)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 165, 0, 0.3)'
+                  padding: '16px',
+                  background: '#262626',
+                  borderRadius: '10px',
+                  border: '1px solid #333'
                 }}>
                   <div style={{
-                    color: '#FFA500',
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    marginBottom: '8px'
+                    color: '#eab308',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    marginBottom: '6px'
                   }}>
                     👶 เด็กสูงไม่เกิน 120 ซม
                   </div>
                   <div style={{
-                    color: 'white',
-                    fontSize: '1.5rem',
-                    fontWeight: 800,
-                    marginBottom: '4px'
+                    color: '#fff',
+                    fontSize: '1.3rem',
+                    fontWeight: 600,
+                    marginBottom: '2px'
                   }}>
                     เพียงราคา 130.-
                   </div>
                   <div style={{
-                    color: '#E0E0E0',
-                    fontSize: '0.9rem'
+                    color: '#a1a1a1',
+                    fontSize: '0.8rem'
                   }}>
                     รวมเครื่องดื่ม
                   </div>
                 </div>
 
                 <div style={{
-                  padding: '20px',
-                  background: 'rgba(156, 39, 176, 0.1)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(156, 39, 176, 0.3)'
+                  padding: '16px',
+                  background: '#262626',
+                  borderRadius: '10px',
+                  border: '1px solid #333'
                 }}>
                   <div style={{
-                    color: '#9C27B0',
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    marginBottom: '8px'
+                    color: '#a855f7',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    marginBottom: '6px'
                   }}>
                     🎁 เด็กสูงไม่เกิน 100 ซม
                   </div>
                   <div style={{
-                    color: '#4CAF50',
-                    fontSize: '1.5rem',
-                    fontWeight: 800
+                    color: '#10b981',
+                    fontSize: '1.3rem',
+                    fontWeight: 600
                   }}>
                     ทานฟรี!
                   </div>
@@ -2197,17 +2047,17 @@ export default function AdminPage() {
             {tablesLoading ? (
               <div style={{
                 textAlign: 'center',
-                color: 'white',
+                color: '#a1a1a1',
                 padding: '40px',
-                fontSize: '1.2rem'
+                fontSize: '1rem'
               }}>
                 กำลังโหลด...
               </div>
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: '16px'
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                gap: '12px'
               }}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((tableNum) => {
                   const tableNumber = tableNum.toString();
@@ -2216,35 +2066,36 @@ export default function AdminPage() {
                     <div
                       key={tableNum}
                       style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        borderRadius: '16px',
-                        padding: '24px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        textAlign: 'center'
+                        background: '#1a1a1a',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        border: '1px solid #2a2a2a',
+                        textAlign: 'center',
+                        transition: 'all 0.2s ease'
                       }}
                     >
                       <div style={{
-                        fontSize: '3rem',
-                        marginBottom: '16px'
+                        fontSize: '2.5rem',
+                        marginBottom: '12px'
                       }}>
                         🪑
                       </div>
                       <div style={{
-                        color: 'white',
-                        fontSize: '1.3rem',
-                        fontWeight: 700,
-                        marginBottom: '16px'
+                        color: '#fff',
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                        marginBottom: '12px'
                       }}>
                         โต๊ะ {tableNumber}
                       </div>
                       <div style={{
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        background: isReady ? '#4CAF50' : '#DC2626',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        background: isReady ? '#10b981' : '#ef4444',
                         color: 'white',
-                        fontSize: '0.9rem',
-                        fontWeight: 600,
-                        marginBottom: '16px'
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        marginBottom: '12px'
                       }}>
                         {isReady ? '✓ พร้อมใช้งาน' : '✗ ยังไม่พร้อม'}
                       </div>
@@ -2252,28 +2103,29 @@ export default function AdminPage() {
                         onClick={() => updateTableStatus(tableNumber, !isReady)}
                         style={{
                           width: '100%',
-                          padding: '12px',
+                          padding: '10px',
                           borderRadius: '8px',
                           border: 'none',
-                          background: isReady ? '#DC2626' : '#4CAF50',
+                          background: isReady ? '#ef4444' : '#10b981',
                           color: 'white',
                           cursor: 'pointer',
-                          fontSize: '1rem',
-                          fontWeight: 600,
-                          transition: 'all 0.3s ease'
+                          fontSize: '0.85rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s ease'
                         }}
                       >
                         {isReady ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
                       </button>
                       {isReady && (
                         <div style={{
-                          marginTop: '12px',
-                          padding: '12px',
-                          background: 'rgba(255, 107, 74, 0.1)',
-                          borderRadius: '8px',
-                          fontSize: '0.85rem',
-                          color: '#FF6B4A',
-                          fontWeight: 600
+                          marginTop: '10px',
+                          padding: '10px',
+                          background: '#262626',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          color: '#10b981',
+                          fontWeight: 500,
+                          border: '1px solid #333'
                         }}>
                           💰 เปิดใช้งานแล้ว
                         </div>
@@ -2295,46 +2147,45 @@ export default function AdminPage() {
               alignItems: 'center',
               marginBottom: '24px',
               flexWrap: 'wrap',
-              gap: '16px'
+              gap: '12px'
             }}>
               <h2 style={{
-                color: 'white',
-                fontSize: isMobile ? '1.5rem' : '1.8rem',
-                fontWeight: 800,
+                color: '#fff',
+                fontSize: '1.25rem',
+                fontWeight: 600,
                 margin: 0
               }}>
                 💰 สรุปยอดเงิน
               </h2>
               <div style={{
                 display: 'flex',
-                gap: '12px',
+                gap: '10px',
                 alignItems: 'center',
                 flexWrap: 'wrap'
               }}>
                 {/* Period Selector */}
                 <div style={{
                   display: 'flex',
-                  gap: '8px',
-                  background: 'rgba(255, 255, 255, 0.08)',
+                  gap: '4px',
+                  background: '#1a1a1a',
                   padding: '4px',
-                  borderRadius: '10px'
+                  borderRadius: '8px',
+                  border: '1px solid #2a2a2a'
                 }}>
                   {(['today', 'week', 'month', 'all'] as const).map((period) => (
                     <button
                       key={period}
                       onClick={() => setCashflowPeriod(period)}
                       style={{
-                        padding: '8px 16px',
-                        borderRadius: '8px',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
                         border: 'none',
-                        background: cashflowPeriod === period 
-                          ? 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)' 
-                          : 'transparent',
-                        color: 'white',
+                        background: cashflowPeriod === period ? '#10b981' : 'transparent',
+                        color: cashflowPeriod === period ? '#fff' : '#a1a1a1',
                         cursor: 'pointer',
-                        fontSize: '0.85rem',
-                        fontWeight: 600,
-                        transition: 'all 0.3s ease',
+                        fontSize: '0.8rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s ease',
                         whiteSpace: 'nowrap'
                       }}
                     >
@@ -2348,16 +2199,15 @@ export default function AdminPage() {
                   onClick={fetchCashflowData}
                   disabled={cashflowLoading}
                   style={{
-                    padding: '10px 20px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: cashflowLoading ? 'rgba(255, 255, 255, 0.2)' : 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)',
-                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #2a2a2a',
+                    background: '#262626',
+                    color: cashflowLoading ? '#737373' : '#fff',
                     cursor: cashflowLoading ? 'not-allowed' : 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease',
-                    opacity: cashflowLoading ? 0.6 : 1
+                    fontSize: '0.8rem',
+                    fontWeight: 500,
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {cashflowLoading ? 'กำลังโหลด...' : '🔄 รีเฟรช'}
@@ -2384,23 +2234,23 @@ export default function AdminPage() {
                     }
                   }}
                   style={{
-                    padding: '10px 20px',
-                    borderRadius: '10px',
-                    border: '2px solid #DC2626',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #ef4444',
                     background: 'transparent',
-                    color: '#DC2626',
+                    color: '#ef4444',
                     cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease'
+                    fontSize: '0.8rem',
+                    fontWeight: 500,
+                    transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#DC2626';
+                    e.currentTarget.style.background = '#ef4444';
                     e.currentTarget.style.color = 'white';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = '#DC2626';
+                    e.currentTarget.style.color = '#ef4444';
                   }}
                 >
                   🔄 Reset
@@ -2412,48 +2262,47 @@ export default function AdminPage() {
               <div style={{
                 textAlign: 'center',
                 padding: '60px 20px',
-                color: 'white'
+                color: '#a1a1a1'
               }}>
                 <div style={{
-                  width: '48px',
-                  height: '48px',
-                  border: '4px solid rgba(255, 107, 74, 0.2)',
-                  borderTopColor: '#FF6B4A',
+                  width: '40px',
+                  height: '40px',
+                  border: '3px solid #2a2a2a',
+                  borderTopColor: '#10b981',
                   borderRadius: '50%',
-                  margin: '0 auto 20px',
+                  margin: '0 auto 16px',
                   animation: 'spin 1s linear infinite'
                 }} />
-                <p style={{ color: '#8B7355' }}>กำลังโหลดข้อมูล...</p>
+                <p style={{ color: '#737373' }}>กำลังโหลดข้อมูล...</p>
               </div>
             ) : (
               <div>
                 {/* Today's Summary */}
                 <div style={{
-                  marginBottom: '32px'
+                  marginBottom: '24px'
                 }}>
                   <h3 style={{
-                    color: '#FF6B4A',
-                    fontSize: '1.3rem',
-                    fontWeight: 700,
-                    marginBottom: '20px',
-                    paddingBottom: '12px',
-                    borderBottom: '2px solid rgba(255, 107, 74, 0.3)'
+                    color: '#f97316',
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    marginBottom: '16px',
+                    paddingBottom: '10px',
+                    borderBottom: '1px solid #2a2a2a'
                   }}>
                     📅 รายได้วันนี้
                   </h3>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                    gap: '20px',
-                    marginBottom: '24px'
+                    gap: '16px',
+                    marginBottom: '20px'
                   }}>
                     {/* Today Total Revenue */}
                     <div style={{
-                      background: 'linear-gradient(135deg, rgba(255, 107, 74, 0.2) 0%, rgba(255, 140, 105, 0.15) 100%)',
-                      padding: '24px',
-                      borderRadius: '20px',
-                      border: '2px solid rgba(255, 107, 74, 0.3)',
-                      backdropFilter: 'blur(10px)'
+                      background: '#1a1a1a',
+                      padding: '20px',
+                      borderRadius: '12px',
+                      border: '1px solid #2a2a2a'
                     }}>
                       <div style={{
                         display: 'flex',
@@ -2462,32 +2311,32 @@ export default function AdminPage() {
                         marginBottom: '12px'
                       }}>
                         <div style={{
-                          width: '48px',
-                          height: '48px',
-                          borderRadius: '12px',
-                          background: 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)',
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          background: '#262626',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1.5rem',
-                          boxShadow: '0 4px 12px rgba(255, 107, 74, 0.3)'
+                          fontSize: '1.2rem',
+                          border: '1px solid #333'
                         }}>
                           💵
                         </div>
                         <div>
                           <div style={{
-                            color: '#8B7355',
-                            fontSize: '0.9rem',
-                            fontWeight: 600
+                            color: '#737373',
+                            fontSize: '0.8rem',
+                            fontWeight: 500
                           }}>
                             รายได้รวมวันนี้
                           </div>
                         </div>
                       </div>
                       <div style={{
-                        color: '#FF6B4A',
-                        fontSize: '2.5rem',
-                        fontWeight: 800,
+                        color: '#10b981',
+                        fontSize: '2rem',
+                        fontWeight: 600,
                         marginTop: '8px'
                       }}>
                         ฿{cashflowData.todayRevenue.toLocaleString()}
@@ -2496,11 +2345,10 @@ export default function AdminPage() {
 
                     {/* Today Orders Count */}
                     <div style={{
-                      background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.15) 100%)',
-                      padding: '24px',
-                      borderRadius: '20px',
-                      border: '2px solid rgba(76, 175, 80, 0.3)',
-                      backdropFilter: 'blur(10px)'
+                      background: '#1a1a1a',
+                      padding: '20px',
+                      borderRadius: '12px',
+                      border: '1px solid #2a2a2a'
                     }}>
                       <div style={{
                         display: 'flex',
@@ -2509,32 +2357,32 @@ export default function AdminPage() {
                         marginBottom: '12px'
                       }}>
                         <div style={{
-                          width: '48px',
-                          height: '48px',
-                          borderRadius: '12px',
-                          background: 'linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)',
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          background: '#262626',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '1.5rem',
-                          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
+                          fontSize: '1.2rem',
+                          border: '1px solid #333'
                         }}>
                           📋
                         </div>
                         <div>
                           <div style={{
-                            color: '#8B7355',
-                            fontSize: '0.9rem',
-                            fontWeight: 600
+                            color: '#737373',
+                            fontSize: '0.8rem',
+                            fontWeight: 500
                           }}>
                             คำสั่งซื้อที่เสร็จสิ้น
                           </div>
                         </div>
                       </div>
                       <div style={{
-                        color: '#4CAF50',
-                        fontSize: '2.5rem',
-                        fontWeight: 800,
+                        color: '#a855f7',
+                        fontSize: '2rem',
+                        fontWeight: 600,
                         marginTop: '8px'
                       }}>
                         {cashflowData.todayOrdersCount} รายการ
@@ -2546,46 +2394,46 @@ export default function AdminPage() {
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                    gap: '16px'
+                    gap: '12px'
                   }}>
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      padding: '20px',
-                      borderRadius: '16px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                      background: '#1a1a1a',
+                      padding: '16px',
+                      borderRadius: '10px',
+                      border: '1px solid #2a2a2a'
                     }}>
                       <div style={{
-                        color: '#8B7355',
-                        fontSize: '0.9rem',
-                        marginBottom: '8px'
+                        color: '#737373',
+                        fontSize: '0.8rem',
+                        marginBottom: '6px'
                       }}>
                         🍽️ รายได้จากอาหาร
                       </div>
                       <div style={{
-                        color: 'white',
-                        fontSize: '1.8rem',
-                        fontWeight: 700
+                        color: '#fff',
+                        fontSize: '1.5rem',
+                        fontWeight: 600
                       }}>
                         ฿{cashflowData.todayFoodRevenue.toLocaleString()}
                       </div>
                     </div>
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      padding: '20px',
-                      borderRadius: '16px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                      background: '#1a1a1a',
+                      padding: '16px',
+                      borderRadius: '10px',
+                      border: '1px solid #2a2a2a'
                     }}>
                       <div style={{
-                        color: '#8B7355',
-                        fontSize: '0.9rem',
-                        marginBottom: '8px'
+                        color: '#737373',
+                        fontSize: '0.8rem',
+                        marginBottom: '6px'
                       }}>
                         💰 รายได้จากบุฟเฟ่ต์
                       </div>
                       <div style={{
-                        color: 'white',
-                        fontSize: '1.8rem',
-                        fontWeight: 700
+                        color: '#fff',
+                        fontSize: '1.5rem',
+                        fontWeight: 600
                       }}>
                         ฿{cashflowData.todayBuffetRevenue.toLocaleString()}
                       </div>
@@ -2595,60 +2443,60 @@ export default function AdminPage() {
 
                 {/* Charts Section */}
                 {dailyBreakdown.length > 0 && (
-                  <div style={{ marginBottom: '32px' }}>
+                  <div style={{ marginBottom: '24px' }}>
                     <h3 style={{
-                      color: '#FF6B4A',
-                      fontSize: '1.3rem',
-                      fontWeight: 700,
-                      marginBottom: '20px',
-                      paddingBottom: '12px',
-                      borderBottom: '2px solid rgba(255, 107, 74, 0.3)'
+                      color: '#f97316',
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      marginBottom: '16px',
+                      paddingBottom: '10px',
+                      borderBottom: '1px solid #2a2a2a'
                     }}>
                       📊 กราฟแสดงรายได้
                     </h3>
                     
                     {/* Daily Revenue Line Chart */}
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      padding: '24px',
-                      borderRadius: '20px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      marginBottom: '24px'
+                      background: '#1a1a1a',
+                      padding: '20px',
+                      borderRadius: '12px',
+                      border: '1px solid #2a2a2a',
+                      marginBottom: '16px'
                     }}>
                       <h4 style={{
-                        color: 'white',
-                        fontSize: '1.1rem',
-                        fontWeight: 700,
-                        marginBottom: '20px'
+                        color: '#fff',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        marginBottom: '16px'
                       }}>
                         📈 รายได้รายวัน
                       </h4>
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={280}>
                         <LineChart
                           data={dailyBreakdown.slice().reverse()}
                           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
                           <XAxis 
                             dataKey="date" 
-                            stroke="#8B7355"
-                            tick={{ fill: '#8B7355', fontSize: 12 }}
+                            stroke="#737373"
+                            tick={{ fill: '#737373', fontSize: 11 }}
                             tickFormatter={(value) => {
                               const date = new Date(value);
                               return `${date.getDate()}/${date.getMonth() + 1}`;
                             }}
                           />
                           <YAxis 
-                            stroke="#8B7355"
-                            tick={{ fill: '#8B7355', fontSize: 12 }}
+                            stroke="#737373"
+                            tick={{ fill: '#737373', fontSize: 11 }}
                             tickFormatter={(value) => `฿${(value / 1000).toFixed(0)}k`}
                           />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: '#2D2520',
-                              border: '1px solid rgba(255, 107, 74, 0.3)',
+                              backgroundColor: '#1a1a1a',
+                              border: '1px solid #2a2a2a',
                               borderRadius: '8px',
-                              color: 'white'
+                              color: '#fff'
                             }}
                             formatter={(value: any) => `฿${value.toLocaleString()}`}
                             labelFormatter={(label) => {
@@ -2662,32 +2510,32 @@ export default function AdminPage() {
                             }}
                           />
                           <Legend 
-                            wrapperStyle={{ color: '#8B7355' }}
+                            wrapperStyle={{ color: '#737373' }}
                             iconType="line"
                           />
                           <Line 
                             type="monotone" 
                             dataKey="totalRevenue" 
-                            stroke="#FF6B4A" 
-                            strokeWidth={3}
-                            dot={{ fill: '#FF6B4A', r: 4 }}
-                            activeDot={{ r: 6 }}
+                            stroke="#10b981" 
+                            strokeWidth={2}
+                            dot={{ fill: '#10b981', r: 3 }}
+                            activeDot={{ r: 5 }}
                             name="รายได้รวม"
                           />
                           <Line 
                             type="monotone" 
                             dataKey="foodRevenue" 
-                            stroke="#4CAF50" 
+                            stroke="#f97316" 
                             strokeWidth={2}
-                            dot={{ fill: '#4CAF50', r: 3 }}
+                            dot={{ fill: '#f97316', r: 3 }}
                             name="รายได้อาหาร"
                           />
                           <Line 
                             type="monotone" 
                             dataKey="buffetRevenue" 
-                            stroke="#2196F3" 
+                            stroke="#3b82f6" 
                             strokeWidth={2}
-                            dot={{ fill: '#2196F3', r: 3 }}
+                            dot={{ fill: '#3b82f6', r: 3 }}
                             name="รายได้บุฟเฟ่ต์"
                           />
                         </LineChart>
@@ -2696,46 +2544,46 @@ export default function AdminPage() {
 
                     {/* Revenue by Type Bar Chart */}
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      padding: '24px',
-                      borderRadius: '20px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      marginBottom: '24px'
+                      background: '#1a1a1a',
+                      padding: '20px',
+                      borderRadius: '12px',
+                      border: '1px solid #2a2a2a',
+                      marginBottom: '16px'
                     }}>
                       <h4 style={{
-                        color: 'white',
-                        fontSize: '1.1rem',
-                        fontWeight: 700,
-                        marginBottom: '20px'
+                        color: '#fff',
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        marginBottom: '16px'
                       }}>
                         📊 รายได้รายวัน (Bar Chart)
                       </h4>
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={280}>
                         <BarChart
                           data={dailyBreakdown.slice().reverse()}
                           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
                           <XAxis 
                             dataKey="date" 
-                            stroke="#8B7355"
-                            tick={{ fill: '#8B7355', fontSize: 12 }}
+                            stroke="#737373"
+                            tick={{ fill: '#737373', fontSize: 11 }}
                             tickFormatter={(value) => {
                               const date = new Date(value);
                               return `${date.getDate()}/${date.getMonth() + 1}`;
                             }}
                           />
                           <YAxis 
-                            stroke="#8B7355"
-                            tick={{ fill: '#8B7355', fontSize: 12 }}
+                            stroke="#737373"
+                            tick={{ fill: '#737373', fontSize: 11 }}
                             tickFormatter={(value) => `฿${(value / 1000).toFixed(0)}k`}
                           />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: '#2D2520',
-                              border: '1px solid rgba(255, 107, 74, 0.3)',
+                              backgroundColor: '#1a1a1a',
+                              border: '1px solid #2a2a2a',
                               borderRadius: '8px',
-                              color: 'white'
+                              color: '#fff'
                             }}
                             formatter={(value: any) => `฿${value.toLocaleString()}`}
                             labelFormatter={(label) => {
@@ -2749,11 +2597,11 @@ export default function AdminPage() {
                             }}
                           />
                           <Legend 
-                            wrapperStyle={{ color: '#8B7355' }}
+                            wrapperStyle={{ color: '#737373' }}
                           />
                           <Bar 
                             dataKey="foodRevenue" 
-                            fill="#4CAF50" 
+                            fill="#f97316" 
                             name="รายได้อาหาร"
                             radius={[8, 8, 0, 0]}
                           />
@@ -3148,34 +2996,35 @@ export default function AdminPage() {
         >
           <div
             style={{
-              background: '#2D2520',
-              borderRadius: '16px',
-              padding: '32px',
-              maxWidth: '500px',
+              background: '#1a1a1a',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '400px',
               width: '100%',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              border: '1px solid #2a2a2a'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{
-              color: 'white',
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              marginBottom: '24px'
+              color: '#fff',
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              marginBottom: '20px'
             }}>
               อัปเดตสถานะคำสั่งซื้อ
             </h2>
             <p style={{
-              color: '#8B7355',
-              marginBottom: '24px'
+              color: '#737373',
+              marginBottom: '20px',
+              fontSize: '0.9rem'
             }}>
               โต๊ะ {selectedOrder.tableNumber} - ฿{selectedOrder.totalPrice.toLocaleString()}
             </p>
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '12px',
-              marginBottom: '24px'
+              gap: '8px',
+              marginBottom: '20px'
             }}>
               {(['pending', 'preparing', 'ready', 'served', 'paid'] as Order['status'][]).map((status) => (
                 <button
@@ -3183,18 +3032,18 @@ export default function AdminPage() {
                   onClick={() => updateOrderStatus(selectedOrder._id, status)}
                   disabled={selectedOrder.status === status}
                   style={{
-                    padding: '12px 20px',
+                    padding: '10px 16px',
                     borderRadius: '8px',
-                    border: 'none',
+                    border: selectedOrder.status === status ? 'none' : '1px solid #333',
                     background: selectedOrder.status === status
                       ? getStatusColor(status)
-                      : 'rgba(255, 255, 255, 0.08)',
-                    color: 'white',
+                      : '#262626',
+                    color: selectedOrder.status === status ? 'white' : '#a1a1a1',
                     cursor: selectedOrder.status === status ? 'not-allowed' : 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease',
-                    opacity: selectedOrder.status === status ? 0.6 : 1
+                    fontSize: '0.9rem',
+                    fontWeight: 500,
+                    transition: 'all 0.2s ease',
+                    opacity: selectedOrder.status === status ? 1 : 1
                   }}
                 >
                   {getStatusLabel(status)}
@@ -3205,14 +3054,14 @@ export default function AdminPage() {
               onClick={() => setSelectedOrder(null)}
               style={{
                 width: '100%',
-                padding: '12px',
+                padding: '10px',
                 borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'transparent',
-                color: 'white',
+                border: '1px solid #333',
+                background: '#262626',
+                color: '#a1a1a1',
                 cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 600
+                fontSize: '0.9rem',
+                fontWeight: 500
               }}
             >
               ยกเลิก
@@ -3241,48 +3090,48 @@ export default function AdminPage() {
         >
           <div
             style={{
-              background: '#2D2520',
-              borderRadius: '16px',
-              padding: '32px',
-              maxWidth: '500px',
+              background: '#1a1a1a',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '400px',
               width: '100%',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              border: '1px solid #2a2a2a'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{
-              color: 'white',
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              marginBottom: '16px'
+              color: '#fff',
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              marginBottom: '12px'
             }}>
               ยืนยันการลบคำสั่งซื้อ
             </h2>
             <p style={{
-              color: '#8B7355',
-              marginBottom: '8px',
-              fontSize: '1rem'
+              color: '#737373',
+              marginBottom: '6px',
+              fontSize: '0.9rem'
             }}>
               คุณต้องการลบคำสั่งซื้อนี้หรือไม่?
             </p>
             <p style={{
-              color: 'white',
-              marginBottom: '24px',
-              fontSize: '1.1rem',
-              fontWeight: 600
+              color: '#fff',
+              marginBottom: '16px',
+              fontSize: '1rem',
+              fontWeight: 500
             }}>
               โต๊ะ {orderToDelete.tableNumber} - ฿{orderToDelete.totalPrice.toLocaleString()}
             </p>
             <p style={{
-              color: '#DC2626',
-              marginBottom: '24px',
-              fontSize: '0.9rem'
+              color: '#ef4444',
+              marginBottom: '20px',
+              fontSize: '0.85rem'
             }}>
               ⚠️ การกระทำนี้ไม่สามารถยกเลิกได้
             </p>
             <div style={{
               display: 'flex',
-              gap: '12px'
+              gap: '10px'
             }}>
               <button
                 onClick={() => {
@@ -3293,14 +3142,14 @@ export default function AdminPage() {
                 }}
                 style={{
                   flex: 1,
-                  padding: '12px',
+                  padding: '10px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: '#DC2626',
+                  background: '#ef4444',
                   color: 'white',
                   cursor: 'pointer',
-                  fontSize: '1rem',
-                  fontWeight: 600
+                  fontSize: '0.9rem',
+                  fontWeight: 500
                 }}
               >
                 ลบ
@@ -3309,14 +3158,14 @@ export default function AdminPage() {
                 onClick={() => setOrderToDelete(null)}
                 style={{
                   flex: 1,
-                  padding: '12px',
+                  padding: '10px',
                   borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: 'transparent',
-                  color: 'white',
+                  border: '1px solid #333',
+                  background: '#262626',
+                  color: '#a1a1a1',
                   cursor: 'pointer',
-                  fontSize: '1rem',
-                  fontWeight: 600
+                  fontSize: '0.9rem',
+                  fontWeight: 500
                 }}
               >
                 ยกเลิก
@@ -3357,76 +3206,76 @@ export default function AdminPage() {
         >
           <div
             style={{
-              background: '#2D2520',
-              borderRadius: '20px',
-              padding: '32px',
-              maxWidth: '600px',
+              background: '#1a1a1a',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '500px',
               width: '100%',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              border: '1px solid #2a2a2a',
               maxHeight: '90vh',
               overflowY: 'auto'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{
-              color: 'white',
-              fontSize: '1.8rem',
-              fontWeight: 700,
-              marginBottom: '8px',
+              color: '#fff',
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              marginBottom: '6px',
               textAlign: 'center'
             }}>
               เปิดใช้งานโต๊ะ {tableToOpen}
             </h2>
             <p style={{
-              color: '#8B7355',
-              fontSize: '1rem',
-              marginBottom: '32px',
+              color: '#737373',
+              fontSize: '0.9rem',
+              marginBottom: '24px',
               textAlign: 'center'
             }}>
               กรุณาเลือกจำนวนคน
             </p>
 
             {/* Adult Count */}
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '12px'
+                marginBottom: '8px'
               }}>
                 <label style={{
-                  color: 'white',
-                  fontSize: '1.1rem',
-                  fontWeight: 600
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  fontWeight: 500
                 }}>
                   👤 ราคาผู้ใหญ่ ท่านละ 199.-
                 </label>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px'
+                  gap: '10px'
                 }}>
                   <button
                     onClick={() => setBillForm(prev => ({ ...prev, adultCount: Math.max(0, prev.adultCount - 1) }))}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      color: 'white',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
+                      border: '1px solid #333',
+                      background: '#262626',
+                      color: '#a1a1a1',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      fontWeight: 700
+                      fontSize: '1rem',
+                      fontWeight: 600
                     }}
                   >
                     -
                   </button>
                   <span style={{
-                    color: 'white',
-                    fontSize: '1.3rem',
-                    fontWeight: 700,
-                    minWidth: '40px',
+                    color: '#fff',
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    minWidth: '36px',
                     textAlign: 'center'
                   }}>
                     {billForm.adultCount}
@@ -3434,15 +3283,15 @@ export default function AdminPage() {
                   <button
                     onClick={() => setBillForm(prev => ({ ...prev, adultCount: prev.adultCount + 1 }))}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
                       border: 'none',
-                      background: '#FF6B4A',
+                      background: '#10b981',
                       color: 'white',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      fontWeight: 700
+                      fontSize: '1rem',
+                      fontWeight: 600
                     }}
                   >
                     +
@@ -3450,8 +3299,8 @@ export default function AdminPage() {
                 </div>
               </div>
               <div style={{
-                color: '#8B7355',
-                fontSize: '0.9rem',
+                color: '#737373',
+                fontSize: '0.85rem',
                 textAlign: 'right'
               }}>
                 = ฿{(billForm.adultCount * 199).toLocaleString()}
@@ -3459,46 +3308,46 @@ export default function AdminPage() {
             </div>
 
             {/* Child 120cm Count */}
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '12px'
+                marginBottom: '8px'
               }}>
                 <label style={{
-                  color: 'white',
-                  fontSize: '1.1rem',
-                  fontWeight: 600
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  fontWeight: 500
                 }}>
                   👶 เด็กสูงไม่เกิน 120 ซม ราคา 130.- (รวมเครื่องดื่ม)
                 </label>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px'
+                  gap: '10px'
                 }}>
                   <button
                     onClick={() => setBillForm(prev => ({ ...prev, child120Count: Math.max(0, prev.child120Count - 1) }))}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      color: 'white',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
+                      border: '1px solid #333',
+                      background: '#262626',
+                      color: '#a1a1a1',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      fontWeight: 700
+                      fontSize: '1rem',
+                      fontWeight: 600
                     }}
                   >
                     -
                   </button>
                   <span style={{
-                    color: 'white',
-                    fontSize: '1.3rem',
-                    fontWeight: 700,
-                    minWidth: '40px',
+                    color: '#fff',
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    minWidth: '36px',
                     textAlign: 'center'
                   }}>
                     {billForm.child120Count}
@@ -3506,15 +3355,15 @@ export default function AdminPage() {
                   <button
                     onClick={() => setBillForm(prev => ({ ...prev, child120Count: prev.child120Count + 1 }))}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
                       border: 'none',
-                      background: '#FFA500',
+                      background: '#eab308',
                       color: 'white',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      fontWeight: 700
+                      fontSize: '1rem',
+                      fontWeight: 600
                     }}
                   >
                     +
@@ -3522,8 +3371,8 @@ export default function AdminPage() {
                 </div>
               </div>
               <div style={{
-                color: '#8B7355',
-                fontSize: '0.9rem',
+                color: '#737373',
+                fontSize: '0.85rem',
                 textAlign: 'right'
               }}>
                 = ฿{(billForm.child120Count * 130).toLocaleString()}
@@ -3531,46 +3380,46 @@ export default function AdminPage() {
             </div>
 
             {/* Child 100cm Count */}
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '12px'
+                marginBottom: '8px'
               }}>
                 <label style={{
-                  color: 'white',
-                  fontSize: '1.1rem',
-                  fontWeight: 600
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  fontWeight: 500
                 }}>
                   🎁 เด็กสูงไม่เกิน 100 ซม ทานฟรี!
                 </label>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px'
+                  gap: '10px'
                 }}>
                   <button
                     onClick={() => setBillForm(prev => ({ ...prev, child100Count: Math.max(0, prev.child100Count - 1) }))}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      color: 'white',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
+                      border: '1px solid #333',
+                      background: '#262626',
+                      color: '#a1a1a1',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      fontWeight: 700
+                      fontSize: '1rem',
+                      fontWeight: 600
                     }}
                   >
                     -
                   </button>
                   <span style={{
-                    color: 'white',
-                    fontSize: '1.3rem',
-                    fontWeight: 700,
-                    minWidth: '40px',
+                    color: '#fff',
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    minWidth: '36px',
                     textAlign: 'center'
                   }}>
                     {billForm.child100Count}
@@ -3578,15 +3427,15 @@ export default function AdminPage() {
                   <button
                     onClick={() => setBillForm(prev => ({ ...prev, child100Count: prev.child100Count + 1 }))}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
                       border: 'none',
-                      background: '#9C27B0',
+                      background: '#a855f7',
                       color: 'white',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      fontWeight: 700
+                      fontSize: '1rem',
+                      fontWeight: 600
                     }}
                   >
                     +
@@ -3594,8 +3443,8 @@ export default function AdminPage() {
                 </div>
               </div>
               <div style={{
-                color: '#4CAF50',
-                fontSize: '0.9rem',
+                color: '#10b981',
+                fontSize: '0.85rem',
                 textAlign: 'right'
               }}>
                 ฟรี
@@ -3603,46 +3452,46 @@ export default function AdminPage() {
             </div>
 
             {/* Drink Refill Count */}
-            <div style={{ marginBottom: '32px' }}>
+            <div style={{ marginBottom: '24px' }}>
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '12px'
+                marginBottom: '8px'
               }}>
                 <label style={{
-                  color: 'white',
-                  fontSize: '1.1rem',
-                  fontWeight: 600
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  fontWeight: 500
                 }}>
                   🥤 น้ำรีฟิลเติมสะใจ! 39.-
                 </label>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px'
+                  gap: '10px'
                 }}>
                   <button
                     onClick={() => setBillForm(prev => ({ ...prev, drinkRefillCount: Math.max(0, prev.drinkRefillCount - 1) }))}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      color: 'white',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
+                      border: '1px solid #333',
+                      background: '#262626',
+                      color: '#a1a1a1',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      fontWeight: 700
+                      fontSize: '1rem',
+                      fontWeight: 600
                     }}
                   >
                     -
                   </button>
                   <span style={{
-                    color: 'white',
-                    fontSize: '1.3rem',
-                    fontWeight: 700,
-                    minWidth: '40px',
+                    color: '#fff',
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    minWidth: '36px',
                     textAlign: 'center'
                   }}>
                     {billForm.drinkRefillCount}
@@ -3650,15 +3499,15 @@ export default function AdminPage() {
                   <button
                     onClick={() => setBillForm(prev => ({ ...prev, drinkRefillCount: prev.drinkRefillCount + 1 }))}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
                       border: 'none',
-                      background: '#4CAF50',
+                      background: '#3b82f6',
                       color: 'white',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      fontWeight: 700
+                      fontSize: '1rem',
+                      fontWeight: 600
                     }}
                   >
                     +
@@ -3666,8 +3515,8 @@ export default function AdminPage() {
                 </div>
               </div>
               <div style={{
-                color: '#8B7355',
-                fontSize: '0.9rem',
+                color: '#737373',
+                fontSize: '0.85rem',
                 textAlign: 'right'
               }}>
                 = ฿{(billForm.drinkRefillCount * 39).toLocaleString()}
@@ -3676,11 +3525,11 @@ export default function AdminPage() {
 
             {/* Total */}
             <div style={{
-              padding: '20px',
-              background: 'rgba(255, 107, 74, 0.1)',
-              borderRadius: '12px',
-              border: '2px solid rgba(255, 107, 74, 0.3)',
-              marginBottom: '24px'
+              padding: '16px',
+              background: '#262626',
+              borderRadius: '10px',
+              border: '1px solid #10b981',
+              marginBottom: '20px'
             }}>
               <div style={{
                 display: 'flex',
@@ -3688,16 +3537,16 @@ export default function AdminPage() {
                 alignItems: 'center'
               }}>
                 <span style={{
-                  color: 'white',
-                  fontSize: '1.3rem',
-                  fontWeight: 700
+                  color: '#fff',
+                  fontSize: '1rem',
+                  fontWeight: 600
                 }}>
                   รวมทั้งหมด:
                 </span>
                 <span style={{
-                  color: '#FF6B4A',
-                  fontSize: '2rem',
-                  fontWeight: 800
+                  color: '#10b981',
+                  fontSize: '1.5rem',
+                  fontWeight: 600
                 }}>
                   ฿{calculateTotal().toLocaleString()}
                 </span>
@@ -3707,21 +3556,21 @@ export default function AdminPage() {
             {/* Buttons */}
             <div style={{
               display: 'flex',
-              gap: '12px'
+              gap: '10px'
             }}>
               <button
                 onClick={saveTableBill}
                 disabled={savingBill || (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0)}
                 style={{
                   flex: 1,
-                  padding: '16px',
-                  borderRadius: '12px',
+                  padding: '12px',
+                  borderRadius: '8px',
                   border: 'none',
-                  background: (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) ? 'rgba(255, 255, 255, 0.2)' : '#FF6B4A',
-                  color: 'white',
+                  background: (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) ? '#333' : '#10b981',
+                  color: (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) ? '#737373' : 'white',
                   cursor: (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) ? 'not-allowed' : 'pointer',
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
                   opacity: savingBill ? 0.6 : 1
                 }}
               >
@@ -3730,14 +3579,14 @@ export default function AdminPage() {
               <button
                 onClick={() => setTableToOpen(null)}
                 style={{
-                  padding: '16px 24px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: 'transparent',
-                  color: 'white',
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  border: '1px solid #333',
+                  background: '#262626',
+                  color: '#a1a1a1',
                   cursor: 'pointer',
-                  fontSize: '1.1rem',
-                  fontWeight: 600
+                  fontSize: '0.95rem',
+                  fontWeight: 500
                 }}
               >
                 ยกเลิก
@@ -3771,17 +3620,15 @@ export default function AdminPage() {
           <div
             key={toast.id}
             style={{
-              background: 'linear-gradient(135deg, rgba(45, 37, 32, 0.98) 0%, rgba(61, 53, 46, 0.98) 100%)',
-              backdropFilter: 'blur(20px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-              borderRadius: '16px',
-              padding: '20px',
-              border: '2px solid rgba(255, 107, 74, 0.4)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+              background: '#1a1a1a',
+              borderRadius: '12px',
+              padding: '16px',
+              border: '1px solid #10b981',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
               pointerEvents: 'auto',
-              animation: 'slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+              animation: 'slideInRight 0.3s ease-out',
               cursor: 'pointer',
-              transition: 'all 0.3s ease',
+              transition: 'all 0.2s ease',
               transform: `translateX(${toasts.length - index > 3 ? '100%' : '0'})`,
               opacity: toasts.length - index > 3 ? 0 : 1
             }}
@@ -3790,12 +3637,10 @@ export default function AdminPage() {
               setToasts(prev => prev.filter(t => t.id !== toast.id));
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateX(0) scale(1.02)';
-              e.currentTarget.style.boxShadow = '0 12px 40px rgba(255, 107, 74, 0.5)';
+              e.currentTarget.style.borderColor = '#34d399';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateX(0) scale(1)';
-              e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.4)';
+              e.currentTarget.style.borderColor = '#10b981';
             }}
           >
             <div style={{
@@ -3804,17 +3649,15 @@ export default function AdminPage() {
               gap: '12px'
             }}>
               <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)',
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: '#10b981',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.5rem',
-                flexShrink: 0,
-                boxShadow: '0 4px 12px rgba(255, 107, 74, 0.3)',
-                animation: 'pulse 2s infinite'
+                fontSize: '1.2rem',
+                flexShrink: 0
               }}>
                 🔔
               </div>
@@ -3823,22 +3666,22 @@ export default function AdminPage() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'flex-start',
-                  marginBottom: '8px'
+                  marginBottom: '6px'
                 }}>
                   <div>
                     <h4 style={{
-                      color: '#FF6B4A',
-                      fontSize: '1.1rem',
-                      fontWeight: 700,
+                      color: '#10b981',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
                       margin: 0,
-                      marginBottom: '4px'
+                      marginBottom: '2px'
                     }}>
                       🆕 คำสั่งซื้อใหม่!
                     </h4>
                     <p style={{
-                      color: 'white',
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
+                      color: '#fff',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
                       margin: 0
                     }}>
                       โต๊ะ {toast.order.tableNumber}
@@ -3850,34 +3693,36 @@ export default function AdminPage() {
                       setToasts(prev => prev.filter(t => t.id !== toast.id));
                     }}
                     style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      border: 'none',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '6px',
+                      border: '1px solid #333',
+                      background: '#262626',
+                      color: '#a1a1a1',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '0.9rem',
+                      fontSize: '0.85rem',
                       flexShrink: 0,
                       transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 107, 74, 0.3)';
+                      e.currentTarget.style.background = '#333';
+                      e.currentTarget.style.color = '#fff';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                      e.currentTarget.style.background = '#262626';
+                      e.currentTarget.style.color = '#a1a1a1';
                     }}
                   >
                     ×
                   </button>
                 </div>
                 <div style={{
-                  color: '#8B7355',
-                  fontSize: '0.85rem',
-                  marginBottom: '8px'
+                  color: '#737373',
+                  fontSize: '0.8rem',
+                  marginBottom: '6px'
                 }}>
                   {toast.order.items.length} รายการ • ฿{toast.order.totalPrice.toLocaleString()}
                 </div>
@@ -3885,19 +3730,20 @@ export default function AdminPage() {
                   <div style={{
                     display: 'flex',
                     flexWrap: 'wrap',
-                    gap: '6px',
-                    marginTop: '8px'
+                    gap: '4px',
+                    marginTop: '6px'
                   }}>
                     {toast.order.items.slice(0, 3).map((item, idx) => (
                       <span
                         key={idx}
                         style={{
-                          background: 'rgba(255, 107, 74, 0.2)',
-                          color: '#FF6B4A',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600
+                          background: '#262626',
+                          color: '#10b981',
+                          padding: '3px 6px',
+                          borderRadius: '4px',
+                          fontSize: '0.7rem',
+                          fontWeight: 500,
+                          border: '1px solid #333'
                         }}
                       >
                         {item.nameTh} x{item.quantity}
@@ -3905,11 +3751,12 @@ export default function AdminPage() {
                     ))}
                     {toast.order.items.length > 3 && (
                       <span style={{
-                        background: 'rgba(255, 255, 255, 0.1)',
-                        color: '#8B7355',
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem'
+                        background: '#262626',
+                        color: '#737373',
+                        padding: '3px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        border: '1px solid #333'
                       }}>
                         +{toast.order.items.length - 3} รายการ
                       </span>
@@ -3917,10 +3764,9 @@ export default function AdminPage() {
                   </div>
                 )}
                 <div style={{
-                  color: '#8B7355',
-                  fontSize: '0.75rem',
-                  marginTop: '8px',
-                  fontStyle: 'italic'
+                  color: '#525252',
+                  fontSize: '0.7rem',
+                  marginTop: '6px'
                 }}>
                   {new Date(toast.order.createdAt).toLocaleTimeString('th-TH', { 
                     hour: '2-digit', 
@@ -3931,1124 +3777,6 @@ export default function AdminPage() {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-// Add Menu Item Modal Component
-function AddMenuItemModal({ 
-  onClose, 
-  onSave 
-}: { 
-  onClose: () => void; 
-  onSave: (newItem: Omit<MenuItem, 'id'>) => void;
-}) {
-  const [formData, setFormData] = useState({
-    name: '',
-    nameTh: '',
-    description: '',
-    price: 0,
-    image: '',
-    category: 'hotpot',
-    isPopular: false,
-    isSpicy: false,
-    isNew: false,
-  });
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Authenticator function to get upload credentials
-  const authenticator = async () => {
-    try {
-      const response = await fetch('/api/upload/imagekit/auth');
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Request failed with status ${response.status}`);
-      }
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      if (!data.signature || !data.token || !data.expire) {
-        throw new Error('Invalid authentication response');
-      }
-      
-      return {
-        signature: data.signature,
-        expire: data.expire,
-        token: data.token,
-        publicKey: data.publicKey || 'public_KxA6nOGAMrPHFO/cQoYQOdr6Gm0=',
-      };
-    } catch (error: any) {
-      console.error('Authentication error:', error);
-      const errorMessage = error.message || 'Authentication request failed';
-      throw new Error(errorMessage);
-    }
-  };
-
-  // Handle file upload using direct API call
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('กรุณาเลือกรูปภาพเท่านั้น');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('ขนาดไฟล์ต้องไม่เกิน 5MB');
-      return;
-    }
-
-    setUploading(true);
-    try {
-      // Get authentication parameters
-      const authParams = await authenticator();
-      
-      // Upload using ImageKit SDK
-      const uploadResponse = await upload({
-        file,
-        fileName: `menu_${Date.now()}_${file.name}`,
-        folder: '/menu_images/',
-        useUniqueFileName: true,
-        signature: authParams.signature,
-        token: authParams.token,
-        expire: authParams.expire,
-        publicKey: authParams.publicKey,
-      });
-
-      if (!uploadResponse.url) {
-        throw new Error('Upload response missing URL');
-      }
-
-      setFormData((prev) => ({ ...prev, image: uploadResponse.url! }));
-      alert('อัพโหลดรูปภาพสำเร็จ!');
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      let errorMessage = 'Unknown error';
-      
-      // Handle specific error types
-      if (error instanceof ImageKitAbortError) {
-        errorMessage = 'Upload was aborted';
-      } else if (error instanceof ImageKitInvalidRequestError) {
-        errorMessage = 'Invalid request: ' + error.message;
-      } else if (error instanceof ImageKitUploadNetworkError) {
-        errorMessage = 'Network error: ' + error.message;
-      } else if (error instanceof ImageKitServerError) {
-        errorMessage = 'Server error: ' + error.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show more specific error messages
-      if (errorMessage.includes('IMAGEKIT_PRIVATE_KEY')) {
-        alert('กรุณาตั้งค่า IMAGEKIT_PRIVATE_KEY ในไฟล์ .env.local\n\nดูคำแนะนำได้ที่ ImageKit Dashboard > Developer Options > API Keys');
-      } else {
-        alert('เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + errorMessage);
-      }
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.nameTh || !formData.category) {
-      alert('กรุณากรอกชื่อเมนู (ไทย/อังกฤษ) และหมวดหมู่');
-      return;
-    }
-    onSave(formData);
-  };
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px'
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: '#2D2520',
-          borderRadius: '20px',
-          padding: '32px',
-          maxWidth: '600px',
-          width: '100%',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          border: '2px solid rgba(255, 107, 74, 0.3)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
-          <h2 style={{
-            color: '#FF6B4A',
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            margin: 0
-          }}>
-            ➕ เพิ่มเมนูใหม่
-          </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
-              borderRadius: '8px',
-              width: '36px',
-              height: '36px',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            ×
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              color: 'white',
-              marginBottom: '8px',
-              fontWeight: 600
-            }}>
-              ชื่อเมนู (ภาษาอังกฤษ) *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                fontSize: '1rem'
-              }}
-              placeholder="Menu Name (English)"
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              color: 'white',
-              marginBottom: '8px',
-              fontWeight: 600
-            }}>
-              ชื่อเมนู (ภาษาไทย) *
-            </label>
-            <input
-              type="text"
-              value={formData.nameTh}
-              onChange={(e) => setFormData({ ...formData, nameTh: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                fontSize: '1rem'
-              }}
-              placeholder="ชื่อเมนู (ภาษาไทย)"
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              color: 'white',
-              marginBottom: '8px',
-              fontWeight: 600
-            }}>
-              คำอธิบาย
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                fontSize: '1rem',
-                resize: 'vertical'
-              }}
-              placeholder="คำอธิบายเมนู"
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              color: 'white',
-              marginBottom: '8px',
-              fontWeight: 600
-            }}>
-              ราคา (บาท)
-            </label>
-            <input
-              type="number"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-              min="0"
-              step="0.01"
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                fontSize: '1rem'
-              }}
-              placeholder="0"
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              color: 'white',
-              marginBottom: '8px',
-              fontWeight: 600
-            }}>
-              รูปภาพเมนู
-            </label>
-            
-            {/* ImageKit Provider for Image Display */}
-            <ImageKitProvider urlEndpoint="https://ik.imagekit.io/8msldpqil">
-              {/* Image Preview */}
-              {formData.image && (
-                <div style={{
-                  marginBottom: '12px',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  border: '2px solid rgba(255, 107, 74, 0.3)',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  position: 'relative'
-                }}>
-                  <Image
-                    src={formData.image.replace('https://ik.imagekit.io/8msldpqil/', '')}
-                    width={400}
-                    height={200}
-                    alt="Preview"
-                    style={{
-                      width: '100%',
-                      height: '200px',
-                      objectFit: 'cover',
-                      display: 'block'
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData({ ...formData, image: '' });
-                    }}
-                    style={{
-                      position: 'absolute',
-                      top: '8px',
-                      right: '8px',
-                      background: 'rgba(0, 0, 0, 0.7)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '32px',
-                      height: '32px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-
-              {/* Upload Button */}
-              <label
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '2px dashed rgba(255, 107, 74, 0.5)',
-                  background: uploading ? 'rgba(255, 107, 74, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                  color: 'white',
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  textAlign: 'center',
-                  fontWeight: 600,
-                  transition: 'all 0.3s ease',
-                  opacity: uploading ? 0.6 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!uploading) {
-                    e.currentTarget.style.borderColor = 'rgba(255, 107, 74, 0.8)';
-                    e.currentTarget.style.background = 'rgba(255, 107, 74, 0.15)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!uploading) {
-                    e.currentTarget.style.borderColor = 'rgba(255, 107, 74, 0.5)';
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                  }
-                }}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  disabled={uploading}
-                  style={{ display: 'none' }}
-                />
-                {uploading ? '⏳ กำลังอัพโหลด...' : '📤 คลิกเพื่ออัพโหลดรูปภาพ หรือลากวางไฟล์'}
-              </label>
-
-              {/* URL Input (Alternative) */}
-              <div style={{
-                marginTop: '12px',
-                padding: '12px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>
-                <div style={{
-                  color: '#8B7355',
-                  fontSize: '0.85rem',
-                  marginBottom: '8px',
-                  fontWeight: 600
-                }}>
-                  หรือกรอก URL รูปภาพ
-                </div>
-                <input
-                  type="text"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    color: 'white',
-                    fontSize: '0.9rem'
-                  }}
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-            </ImageKitProvider>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              color: 'white',
-              marginBottom: '8px',
-              fontWeight: 600
-            }}>
-              หมวดหมู่ *
-            </label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                fontSize: '1rem'
-              }}
-            >
-              <option value="hotpot">สุกี้ (Hot Pot)</option>
-              <option value="grilled">ปิ้งย่าง (Grilled)</option>
-              <option value="seafood">อาหารทะเล (Seafood)</option>
-              <option value="appetizer">เรียกน้ำย่อย (Appetizers)</option>
-              <option value="drinks">เครื่องดื่ม (Drinks)</option>
-              <option value="dessert">ของหวาน (Desserts)</option>
-            </select>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '16px',
-            marginBottom: '24px',
-            flexWrap: 'wrap'
-          }}>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: 'white',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                checked={formData.isPopular}
-                onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
-                style={{ width: '20px', height: '20px' }}
-              />
-              <span>⭐ ยอดนิยม</span>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: 'white',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                checked={formData.isSpicy}
-                onChange={(e) => setFormData({ ...formData, isSpicy: e.target.checked })}
-                style={{ width: '20px', height: '20px' }}
-              />
-              <span>🌶️ เผ็ด</span>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: 'white',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                checked={formData.isNew}
-                onChange={(e) => setFormData({ ...formData, isNew: e.target.checked })}
-                style={{ width: '20px', height: '20px' }}
-              />
-              <span>🆕 ใหม่</span>
-            </label>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'flex-end'
-          }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '12px 24px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 600
-              }}
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="submit"
-              style={{
-                padding: '12px 24px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'linear-gradient(135deg, #FF6B4A 0%, #FF8C69 100%)',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 600,
-                boxShadow: '0 4px 12px rgba(255, 107, 74, 0.3)'
-              }}
-            >
-              บันทึก
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Edit Menu Item Modal Component
-function EditMenuItemModal({ 
-  item, 
-  onClose, 
-  onSave 
-}: { 
-  item: MenuItem; 
-  onClose: () => void; 
-  onSave: (updates: Partial<MenuItem>) => void;
-}) {
-  const [formData, setFormData] = useState({
-    name: item.name,
-    nameTh: item.nameTh,
-    description: item.description,
-    price: item.price,
-    image: item.image,
-    category: item.category,
-    isPopular: item.isPopular,
-    isSpicy: item.isSpicy,
-    isNew: item.isNew,
-  });
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Authenticator function to get upload credentials
-  const authenticator = async () => {
-    try {
-      const response = await fetch('/api/upload/imagekit/auth');
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Request failed with status ${response.status}`);
-      }
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      if (!data.signature || !data.token || !data.expire) {
-        throw new Error('Invalid authentication response');
-      }
-      
-      return {
-        signature: data.signature,
-        expire: data.expire,
-        token: data.token,
-        publicKey: data.publicKey || 'public_KxA6nOGAMrPHFO/cQoYQOdr6Gm0=',
-      };
-    } catch (error: any) {
-      console.error('Authentication error:', error);
-      const errorMessage = error.message || 'Authentication request failed';
-      throw new Error(errorMessage);
-    }
-  };
-
-  // Handle file upload using direct API call
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('กรุณาเลือกรูปภาพเท่านั้น');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('ขนาดไฟล์ต้องไม่เกิน 5MB');
-      return;
-    }
-
-    setUploading(true);
-    try {
-      // Get authentication parameters
-      const authParams = await authenticator();
-      
-      // Upload using ImageKit SDK
-      const uploadResponse = await upload({
-        file,
-        fileName: `menu_${Date.now()}_${file.name}`,
-        folder: '/menu_images/',
-        useUniqueFileName: true,
-        signature: authParams.signature,
-        token: authParams.token,
-        expire: authParams.expire,
-        publicKey: authParams.publicKey,
-      });
-
-      if (!uploadResponse.url) {
-        throw new Error('Upload response missing URL');
-      }
-
-      setFormData((prev) => ({ ...prev, image: uploadResponse.url! }));
-      alert('อัพโหลดรูปภาพสำเร็จ!');
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      let errorMessage = 'Unknown error';
-      
-      // Handle specific error types
-      if (error instanceof ImageKitAbortError) {
-        errorMessage = 'Upload was aborted';
-      } else if (error instanceof ImageKitInvalidRequestError) {
-        errorMessage = 'Invalid request: ' + error.message;
-      } else if (error instanceof ImageKitUploadNetworkError) {
-        errorMessage = 'Network error: ' + error.message;
-      } else if (error instanceof ImageKitServerError) {
-        errorMessage = 'Server error: ' + error.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show more specific error messages
-      if (errorMessage.includes('IMAGEKIT_PRIVATE_KEY')) {
-        alert('กรุณาตั้งค่า IMAGEKIT_PRIVATE_KEY ในไฟล์ .env.local\n\nดูคำแนะนำได้ที่ ImageKit Dashboard > Developer Options > API Keys');
-      } else {
-        alert('เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + errorMessage);
-      }
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px'
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: '#2D2520',
-          borderRadius: '16px',
-          padding: '32px',
-          maxWidth: '600px',
-          width: '100%',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 style={{
-          color: 'white',
-          fontSize: '1.5rem',
-          fontWeight: 700,
-          marginBottom: '24px'
-        }}>
-          แก้ไขเมนู: {item.nameTh}
-        </h2>
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              color: '#8B7355',
-              fontSize: '0.9rem',
-              marginBottom: '8px'
-            }}>
-              ชื่อภาษาอังกฤษ
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'white',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              color: '#8B7355',
-              fontSize: '0.9rem',
-              marginBottom: '8px'
-            }}>
-              ชื่อภาษาไทย
-            </label>
-            <input
-              type="text"
-              value={formData.nameTh}
-              onChange={(e) => setFormData({ ...formData, nameTh: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'white',
-                fontSize: '1rem'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              color: '#8B7355',
-              fontSize: '0.9rem',
-              marginBottom: '8px'
-            }}>
-              คำอธิบาย
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'white',
-                fontSize: '1rem',
-                resize: 'vertical'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              color: '#8B7355',
-              fontSize: '0.9rem',
-              marginBottom: '8px'
-            }}>
-              ราคา (฿) - ใส่ 0 สำหรับบุฟเฟ่ต์
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'white',
-                fontSize: '1rem'
-              }}
-            />
-            {formData.price === 0 && (
-              <p style={{
-                color: '#4CAF50',
-                fontSize: '0.85rem',
-                marginTop: '4px'
-              }}>
-                ✓ ตั้งเป็นราคาบุฟเฟ่ต์ (0 บาท)
-              </p>
-            )}
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              color: 'white',
-              marginBottom: '8px',
-              fontWeight: 600
-            }}>
-              รูปภาพเมนู
-            </label>
-            
-            {/* ImageKit Provider for Image Display */}
-            <ImageKitProvider urlEndpoint="https://ik.imagekit.io/8msldpqil">
-              {/* Image Preview */}
-              {formData.image && (
-                <div style={{
-                  marginBottom: '12px',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  border: '2px solid rgba(255, 107, 74, 0.3)',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  position: 'relative'
-                }}>
-                  <Image
-                    src={formData.image.replace('https://ik.imagekit.io/8msldpqil/', '')}
-                    width={400}
-                    height={200}
-                    alt="Preview"
-                    style={{
-                      width: '100%',
-                      height: '200px',
-                      objectFit: 'cover',
-                      display: 'block'
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData({ ...formData, image: '' });
-                    }}
-                    style={{
-                      position: 'absolute',
-                      top: '8px',
-                      right: '8px',
-                      background: 'rgba(0, 0, 0, 0.7)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '32px',
-                      height: '32px',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-
-              {/* Upload Button */}
-              <label
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '2px dashed rgba(255, 107, 74, 0.5)',
-                  background: uploading ? 'rgba(255, 107, 74, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                  color: 'white',
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  textAlign: 'center',
-                  fontWeight: 600,
-                  transition: 'all 0.3s ease',
-                  opacity: uploading ? 0.6 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!uploading) {
-                    e.currentTarget.style.borderColor = 'rgba(255, 107, 74, 0.8)';
-                    e.currentTarget.style.background = 'rgba(255, 107, 74, 0.15)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!uploading) {
-                    e.currentTarget.style.borderColor = 'rgba(255, 107, 74, 0.5)';
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                  }
-                }}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  disabled={uploading}
-                  style={{ display: 'none' }}
-                />
-                {uploading ? '⏳ กำลังอัพโหลด...' : '📤 คลิกเพื่ออัพโหลดรูปภาพ หรือลากวางไฟล์'}
-              </label>
-
-              {/* URL Input (Alternative) */}
-              <div style={{
-                marginTop: '12px',
-                padding: '12px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>
-                <div style={{
-                  color: '#8B7355',
-                  fontSize: '0.85rem',
-                  marginBottom: '8px',
-                  fontWeight: 600
-                }}>
-                  หรือกรอก URL รูปภาพ
-                </div>
-                <input
-                  type="text"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    color: 'white',
-                    fontSize: '0.9rem'
-                  }}
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-            </ImageKitProvider>
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              color: '#8B7355',
-              fontSize: '0.9rem',
-              marginBottom: '8px'
-            }}>
-              หมวดหมู่
-            </label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: 'white',
-                fontSize: '1rem'
-              }}
-            >
-              <option value="hotpot">สุกี้ (Hot Pot)</option>
-              <option value="grilled">ปิ้งย่าง (Grilled)</option>
-              <option value="seafood">อาหารทะเล (Seafood)</option>
-              <option value="appetizer">เรียกน้ำย่อย (Appetizers)</option>
-              <option value="drinks">เครื่องดื่ม (Drinks)</option>
-              <option value="dessert">ของหวาน (Desserts)</option>
-            </select>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '16px',
-            marginBottom: '24px',
-            flexWrap: 'wrap'
-          }}>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: 'white',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                checked={formData.isPopular}
-                onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
-                style={{ width: '20px', height: '20px' }}
-              />
-              <span>⭐ ยอดนิยม</span>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: 'white',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                checked={formData.isSpicy}
-                onChange={(e) => setFormData({ ...formData, isSpicy: e.target.checked })}
-                style={{ width: '20px', height: '20px' }}
-              />
-              <span>🌶️ เผ็ด</span>
-            </label>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: 'white',
-              cursor: 'pointer'
-            }}>
-              <input
-                type="checkbox"
-                checked={formData.isNew}
-                onChange={(e) => setFormData({ ...formData, isNew: e.target.checked })}
-                style={{ width: '20px', height: '20px' }}
-              />
-              <span>🆕 ใหม่</span>
-            </label>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '12px'
-          }}>
-            <button
-              type="submit"
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#FF6B4A',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 600
-              }}
-            >
-              บันทึก
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                background: 'transparent',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 600
-              }}
-            >
-              ยกเลิก
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );
