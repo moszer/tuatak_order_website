@@ -64,6 +64,11 @@ export default function Cart() {
     const grandTotal = totalPrice + billTotal;
 
     const handleSubmitOrder = async () => {
+        // Prevent multiple submissions
+        if (isSubmitting) {
+            return;
+        }
+
         if (items.length === 0) return;
 
         // Check if table is open before submitting order
@@ -245,16 +250,14 @@ export default function Cart() {
                             {/* Submit Order Button */}
                             <button
                                 onClick={handleSubmitOrder}
-                                disabled={isSubmitting}
-                                className="w-full btn-primary text-lg py-4 justify-center"
-                                style={{ opacity: isSubmitting ? 0.7 : 1 }}
+                                disabled={isSubmitting || items.length === 0}
+                                className="w-full btn-primary text-lg py-4 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ opacity: isSubmitting || items.length === 0 ? 0.5 : 1 }}
                             >
                                 {isSubmitting ? (
-                                    'กำลังส่งออเดอร์...'
+                                    '⏳ กำลังส่งออเดอร์...'
                                 ) : (
-                                    <>
-                                        🍜 ยืนยันสั่งอาหาร
-                                    </>
+                                    '🍜 ยืนยันสั่งอาหาร'
                                 )}
                             </button>
 
