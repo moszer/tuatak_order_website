@@ -90,14 +90,26 @@ export default function Cart() {
             const statusData = await statusResponse.json();
             
             if (!statusData.success || !statusData.isReady) {
-                alert('⚠️ โปรดเปิดโต๊ะก่อนสั่งอาหาร\n\nกรุณาแจ้งพนักงานให้เปิดโต๊ะให้ก่อน');
+                await Swal.fire({
+                  icon: 'warning',
+                  title: 'แจ้งเตือน',
+                  text: 'โปรดเปิดโต๊ะก่อนสั่งอาหาร\n\nกรุณาแจ้งพนักงานให้เปิดโต๊ะให้ก่อน',
+                  confirmButtonColor: '#f97316',
+                  confirmButtonText: 'ตกลง'
+                });
                 isSubmittingRef.current = false;
                 setIsSubmitting(false);
                 return;
             }
         } catch (error) {
             console.error('Error checking table status:', error);
-            alert('⚠️ ไม่สามารถตรวจสอบสถานะโต๊ะได้\n\nกรุณาลองใหม่อีกครั้ง');
+            await Swal.fire({
+              icon: 'error',
+              title: 'เกิดข้อผิดพลาด',
+              text: 'ไม่สามารถตรวจสอบสถานะโต๊ะได้\n\nกรุณาลองใหม่อีกครั้ง',
+              confirmButtonColor: '#ef4444',
+              confirmButtonText: 'ตกลง'
+            });
             isSubmittingRef.current = false;
             setIsSubmitting(false);
             return;
@@ -132,13 +144,25 @@ export default function Cart() {
                 }, 2000);
             } else {
                 const errorData = await response.json();
-                alert(errorData.error || 'เกิดข้อผิดพลาดในการสั่งอาหาร');
+                await Swal.fire({
+                  icon: 'error',
+                  title: 'เกิดข้อผิดพลาด',
+                  text: errorData.error || 'เกิดข้อผิดพลาดในการสั่งอาหาร',
+                  confirmButtonColor: '#ef4444',
+                  confirmButtonText: 'ตกลง'
+                });
                 isSubmittingRef.current = false;
                 setIsSubmitting(false);
             }
         } catch (error) {
             console.error('Error submitting order:', error);
-            alert('เกิดข้อผิดพลาดในการสั่งอาหาร กรุณาลองใหม่อีกครั้ง');
+            await Swal.fire({
+              icon: 'error',
+              title: 'เกิดข้อผิดพลาด',
+              text: 'เกิดข้อผิดพลาดในการสั่งอาหาร กรุณาลองใหม่อีกครั้ง',
+              confirmButtonColor: '#ef4444',
+              confirmButtonText: 'ตกลง'
+            });
             isSubmittingRef.current = false;
             setIsSubmitting(false);
         }

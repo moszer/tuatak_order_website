@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Order } from '@/lib/mysql';
 import { AddMenuItemModal, EditMenuItemModal } from './components/MenuModals';
 import { MenuItem } from './types';
+import Swal from 'sweetalert2';
 import {
   LineChart,
   Line,
@@ -79,7 +80,6 @@ export default function AdminPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [tableBills, setTableBills] = useState<Record<string, any>>({});
-  const [toasts, setToasts] = useState<Array<{ id: string; order: OrderWithId; timestamp: number }>>([]);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -170,7 +170,13 @@ export default function AdminPage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        alert('✅ เปลี่ยนรหัสผ่านสำเร็จ');
+        await Swal.fire({
+          icon: 'success',
+          title: 'สำเร็จ!',
+          text: 'เปลี่ยนรหัสผ่านสำเร็จ',
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'ตกลง'
+        });
         setShowChangePasswordModal(false);
         setPasswordForm({
           currentPassword: '',
@@ -340,19 +346,53 @@ export default function AdminPage() {
             playNotificationSound();
           }
           
-          // Show toast for new orders
+          // Show SweetAlert toast for new orders
           const newOrderList = newOrders.filter(order => 
             previousSize === 0 || !previousOrderIdsRef.current.has(order._id)
           );
           
           newOrderList.forEach(order => {
-            const toastId = `${order._id}-${Date.now()}`;
-            setToasts(prev => [...prev, { id: toastId, order, timestamp: Date.now() }]);
+            const orderItems = order.items.slice(0, 3).map(item => 
+              `${item.nameTh} x${item.quantity}`
+            ).join(', ');
+            const moreItems = order.items.length > 3 ? ` และอีก ${order.items.length - 3} รายการ` : '';
+            const timeStr = new Date(order.createdAt).toLocaleTimeString('th-TH', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            });
             
-            // Auto remove toast after 5 seconds
-            setTimeout(() => {
-              setToasts(prev => prev.filter(toast => toast.id !== toastId));
-            }, 5000);
+            Swal.fire({
+              toast: true,
+              position: 'top-end',
+              icon: 'info',
+              title: `🆕 คำสั่งซื้อใหม่! โต๊ะ ${order.tableNumber}`,
+              html: `
+                <div style="text-align: left; font-size: 0.9rem; color: #a1a1a1; margin-top: 8px;">
+                  <div style="margin-bottom: 4px;">
+                    ${order.items.length} รายการ • ฿${order.totalPrice.toLocaleString()}
+                  </div>
+                  <div style="color: #fff; font-weight: 500;">
+                    ${orderItems}${moreItems}
+                  </div>
+                  <div style="margin-top: 4px; font-size: 0.85rem; color: #737373;">
+                    ${timeStr}
+                  </div>
+                </div>
+              `,
+              showConfirmButton: false,
+              timer: 5000,
+              timerProgressBar: true,
+              background: '#1a1a1a',
+              color: '#fff',
+              iconColor: '#10b981',
+              didOpen: (toast) => {
+                toast.style.cursor = 'pointer';
+                toast.addEventListener('click', () => {
+                  setSelectedOrder(order);
+                  Swal.close();
+                });
+              }
+            });
           });
         }
       }
@@ -416,12 +456,22 @@ export default function AdminPage() {
         fetchOrders();
         setSelectedOrder(null);
       } else {
-        alert(data.error || 'Failed to update order status');
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: data.error || 'Failed to update order status',
+          confirmButtonColor: '#ef4444'
+        });
         console.error('Update error:', data);
       }
     } catch (error) {
       console.error('Error updating order:', error);
-      alert('Error updating order status: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'Error updating order status: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
@@ -437,12 +487,22 @@ export default function AdminPage() {
         fetchOrders();
         setOrderToDelete(null);
       } else {
-        alert(data.error || 'Failed to delete order');
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: data.error || 'Failed to delete order',
+          confirmButtonColor: '#ef4444'
+        });
         console.error('Delete error:', data);
       }
     } catch (error) {
       console.error('Error deleting order:', error);
-      alert('Error deleting order: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'Error deleting order: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
@@ -476,11 +536,21 @@ export default function AdminPage() {
         fetchMenuItems();
         setSelectedMenuItem(null);
       } else {
-        alert(data.error || 'Failed to update menu item');
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: data.error || 'Failed to update menu item',
+          confirmButtonColor: '#ef4444'
+        });
       }
     } catch (error) {
       console.error('Error updating menu item:', error);
-      alert('Error updating menu item: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'Error updating menu item: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
@@ -495,11 +565,21 @@ export default function AdminPage() {
       if (response.ok) {
         fetchMenuItems();
       } else {
-        alert(data.error || 'Failed to delete menu item');
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: data.error || 'Failed to delete menu item',
+          confirmButtonColor: '#ef4444'
+        });
       }
     } catch (error) {
       console.error('Error deleting menu item:', error);
-      alert('Error deleting menu item: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'Error deleting menu item: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
@@ -518,13 +598,29 @@ export default function AdminPage() {
       if (response.ok) {
         fetchMenuItems();
         setShowAddMenuModal(false);
-        alert('เพิ่มเมนูสำเร็จ!');
+        await Swal.fire({
+          icon: 'success',
+          title: 'สำเร็จ!',
+          text: 'เพิ่มเมนูสำเร็จ!',
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'ตกลง'
+        });
       } else {
-        alert(data.error || 'Failed to add menu item');
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: data.error || 'Failed to add menu item',
+          confirmButtonColor: '#ef4444'
+        });
       }
     } catch (error) {
       console.error('Error adding menu item:', error);
-      alert('Error adding menu item: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'Error adding menu item: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
@@ -641,11 +737,21 @@ export default function AdminPage() {
           [tableNumber]: isReady,
         }));
       } else {
-        alert(data.error || 'Failed to update table status');
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: data.error || 'Failed to update table status',
+          confirmButtonColor: '#ef4444'
+        });
       }
     } catch (error) {
       console.error('Error updating table status:', error);
-      alert('Error updating table status: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'Error updating table status: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
@@ -653,7 +759,13 @@ export default function AdminPage() {
     if (!tableToOpen) return;
 
     if (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) {
-      alert('กรุณาเลือกจำนวนคนอย่างน้อย 1 คน');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'แจ้งเตือน',
+        text: 'กรุณาเลือกจำนวนคนอย่างน้อย 1 คน',
+        confirmButtonColor: '#f97316',
+        confirmButtonText: 'ตกลง'
+      });
       return;
     }
 
@@ -675,7 +787,12 @@ export default function AdminPage() {
       const billData = await billResponse.json();
 
       if (!billResponse.ok) {
-        alert(billData.error || 'Failed to save bill');
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: billData.error || 'Failed to save bill',
+          confirmButtonColor: '#ef4444'
+        });
         return;
       }
 
@@ -705,11 +822,21 @@ export default function AdminPage() {
         // Refresh orders immediately to update the display
         await fetchOrders();
       } else {
-        alert(statusData.error || 'Failed to update table status');
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: statusData.error || 'Failed to update table status',
+          confirmButtonColor: '#ef4444'
+        });
       }
     } catch (error) {
       console.error('Error saving table bill:', error);
-      alert('Error saving table bill: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'Error saving table bill: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        confirmButtonColor: '#ef4444'
+      });
     } finally {
       setSavingBill(false);
     }
@@ -726,9 +853,29 @@ export default function AdminPage() {
 💵 รวมทั้งหมด: ฿${grandTotal.toLocaleString()}
     `;
 
-    const confirmed = window.confirm(billSummary + '\n\nต้องการเช็คบิล ปิดโต๊ะ และลบคำสั่งซื้อทั้งหมดหรือไม่?');
+    const result = await Swal.fire({
+      icon: 'question',
+      title: 'สรุปบิลโต๊ะ ' + tableNumber,
+      html: `
+        <div style="text-align: left; font-size: 1rem; line-height: 1.8;">
+          <div>💰 บิลบุฟเฟ่ต์: ฿${billTotal.toLocaleString()}</div>
+          <div>🍽️ รวมอาหาร: ฿${foodTotal.toLocaleString()}</div>
+          <hr style="border: none; border-top: 1px solid #2a2a2a; margin: 10px 0;" />
+          <div style="font-weight: 600; font-size: 1.1rem;">💵 รวมทั้งหมด: ฿${grandTotal.toLocaleString()}</div>
+        </div>
+        <div style="margin-top: 15px; color: #a1a1a1; font-size: 0.9rem;">
+          ต้องการเช็คบิล ปิดโต๊ะ และลบคำสั่งซื้อทั้งหมดหรือไม่?
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันเช็คบิล',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true
+    });
     
-    if (confirmed) {
+    if (result.isConfirmed) {
       try {
         // Delete all orders for this table
         const deletePromises = orders
@@ -767,10 +914,29 @@ export default function AdminPage() {
         // Refresh orders and bills
         await fetchOrders();
 
-        alert(`✅ เช็คบิลเสร็จสิ้น\n\nรวมทั้งหมด: ฿${grandTotal.toLocaleString()}\n\nโต๊ะ ${tableNumber} ถูกปิดแล้ว\nคำสั่งซื้อทั้งหมดถูกลบแล้ว`);
+        await Swal.fire({
+          icon: 'success',
+          title: 'เช็คบิลเสร็จสิ้น!',
+          html: `
+            <div style="text-align: center; font-size: 1rem; line-height: 1.8;">
+              <div style="font-size: 1.2rem; font-weight: 600; color: #10b981; margin-bottom: 10px;">
+                รวมทั้งหมด: ฿${grandTotal.toLocaleString()}
+              </div>
+              <div>โต๊ะ ${tableNumber} ถูกปิดแล้ว</div>
+              <div>คำสั่งซื้อทั้งหมดถูกลบแล้ว</div>
+            </div>
+          `,
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'ตกลง'
+        });
       } catch (error) {
         console.error('Error checking bill:', error);
-        alert('เกิดข้อผิดพลาดในการเช็คบิล: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'เกิดข้อผิดพลาดในการเช็คบิล: ' + (error instanceof Error ? error.message : 'Unknown error'),
+          confirmButtonColor: '#ef4444'
+        });
       }
     }
   };
@@ -880,15 +1046,17 @@ export default function AdminPage() {
             }
             .admin-top-bar {
               padding: 16px !important;
-              border-radius: 12px !important;
+              border-radius: 16px !important;
             }
             .admin-tabs {
               width: 100%;
-              justify-content: center;
+              justify-content: stretch;
+              padding: 4px !important;
+              gap: 4px !important;
             }
             .admin-tab-button {
-              padding: 10px 16px !important;
-              font-size: 0.9rem !important;
+              padding: 10px 12px !important;
+              font-size: 0.85rem !important;
               flex: 1;
               min-width: 0;
             }
@@ -896,49 +1064,85 @@ export default function AdminPage() {
               width: 100%;
               justify-content: space-between;
               margin-top: 12px;
+              gap: 8px !important;
             }
             .admin-stats-grid {
-              grid-template-columns: 1fr !important;
+              grid-template-columns: repeat(2, 1fr) !important;
               gap: 12px !important;
             }
             .admin-stat-card {
-              padding: 20px !important;
+              padding: 16px !important;
             }
             .admin-filter-buttons {
               flex-wrap: wrap;
-              gap: 8px;
+              gap: 6px !important;
             }
             .admin-filter-button {
-              padding: 8px 16px !important;
-              font-size: 0.85rem !important;
+              padding: 8px 12px !important;
+              font-size: 0.8rem !important;
             }
             .admin-table-card {
-              padding: 20px !important;
+              padding: 16px !important;
               border-radius: 16px !important;
             }
             .admin-order-card {
-              padding: 16px !important;
+              padding: 14px !important;
               border-radius: 12px !important;
             }
             .admin-modal {
               max-width: 95vw !important;
-              padding: 24px !important;
-              margin: 20px !important;
+              padding: 20px !important;
+              margin: 10px !important;
+              max-height: 90vh !important;
+              overflow-y: auto !important;
             }
           }
           @media (max-width: 480px) {
+            .admin-container {
+              padding: 12px 8px !important;
+            }
+            .admin-top-bar {
+              padding: 14px !important;
+              border-radius: 12px !important;
+            }
+            .admin-tabs {
+              padding: 3px !important;
+              gap: 3px !important;
+            }
             .admin-tab-button {
-              padding: 8px 12px !important;
-              font-size: 0.8rem !important;
+              padding: 8px 8px !important;
+              font-size: 0.75rem !important;
+              min-width: 60px;
+            }
+            .admin-stats-grid {
+              grid-template-columns: 1fr !important;
+              gap: 10px !important;
             }
             .admin-stat-card {
-              padding: 16px !important;
+              padding: 14px !important;
+            }
+            .admin-filter-buttons {
+              gap: 4px !important;
+            }
+            .admin-filter-button {
+              padding: 6px 10px !important;
+              font-size: 0.75rem !important;
             }
             .admin-table-card {
-              padding: 16px !important;
+              padding: 14px !important;
             }
             .admin-order-card {
               padding: 12px !important;
+            }
+            .admin-modal {
+              padding: 16px !important;
+              margin: 8px !important;
+            }
+          }
+          @media (max-width: 360px) {
+            .admin-tab-button {
+              font-size: 0.7rem !important;
+              padding: 7px 6px !important;
             }
           }
         `
@@ -1154,7 +1358,7 @@ export default function AdminPage() {
                 )}
               </div>
               {/* Settings Menu */}
-              <div style={{ position: 'relative' }} data-menu-container>
+              <div style={{ position: 'relative', zIndex: 9999 }} data-menu-container>
                 <button
                   onClick={() => setShowMenu(!showMenu)}
                   style={{
@@ -1192,23 +1396,39 @@ export default function AdminPage() {
                 
                 {/* Dropdown Menu */}
                 {showMenu && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      right: 0,
-                      marginTop: '8px',
-                      background: '#1a1a1a',
-                      borderRadius: '12px',
-                      border: '1px solid #2a2a2a',
-                      padding: '8px',
-                      minWidth: '200px',
-                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-                      zIndex: 1000,
-                      animation: 'slideDown 0.2s ease-out'
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <>
+                    {/* Backdrop */}
+                    <div
+                      style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        zIndex: 9998,
+                      }}
+                      onClick={() => setShowMenu(false)}
+                    />
+                    {/* Menu Content */}
+                    <div
+                      style={{
+                        position: 'fixed',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        background: '#1a1a1a',
+                        borderRadius: '16px',
+                        border: '1px solid #2a2a2a',
+                        padding: '8px',
+                        minWidth: isMobile ? '280px' : '300px',
+                        maxWidth: '90vw',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+                        zIndex: 9999,
+                        animation: 'slideDown 0.2s ease-out'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                     {/* Sound Toggle */}
                     <button
                       onClick={() => {
@@ -1325,7 +1545,8 @@ export default function AdminPage() {
                       <span style={{ fontSize: '1.1rem' }}>🚪</span>
                       <span>ออกจากระบบ</span>
                     </button>
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1507,10 +1728,10 @@ export default function AdminPage() {
         <div style={{
           marginBottom: isMobile ? '24px' : '32px',
           display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '16px',
+          alignItems: isMobile ? 'stretch' : 'center',
+          gap: isMobile ? '12px' : '16px',
           background: 'rgba(26, 26, 26, 0.6)',
           padding: isMobile ? '16px' : '20px',
           borderRadius: '16px',
@@ -1518,17 +1739,19 @@ export default function AdminPage() {
           backdropFilter: 'blur(10px)'
         }}>
           <div style={{
-            display: 'flex',
-            gap: '10px',
-            flexWrap: 'wrap',
-            flex: '1'
+            display: 'grid',
+            gridTemplateColumns: isMobile 
+              ? 'repeat(3, 1fr)' 
+              : 'repeat(3, auto)',
+            gap: isMobile ? '8px' : '10px',
+            width: '100%'
           }}>
           {['all', 'pending', 'preparing', 'ready', 'served', 'paid'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
               style={{
-                padding: isMobile ? '10px 18px' : '12px 24px',
+                padding: isMobile ? '10px 12px' : '12px 20px',
                 borderRadius: '10px',
                 border: filterStatus === status ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
                 background: filterStatus === status 
@@ -1536,11 +1759,13 @@ export default function AdminPage() {
                   : 'rgba(255, 255, 255, 0.03)',
                 color: filterStatus === status ? '#fff' : '#d1d5db',
                 cursor: 'pointer',
-                fontSize: isMobile ? '0.85rem' : '0.9rem',
+                fontSize: isMobile ? '0.8rem' : '0.9rem',
                 fontWeight: 600,
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 boxShadow: filterStatus === status ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none',
-                transform: filterStatus === status ? 'translateY(-2px)' : 'none'
+                transform: filterStatus === status ? 'translateY(-2px)' : 'none',
+                whiteSpace: 'nowrap',
+                textAlign: 'center'
               }}
               onMouseEnter={(e) => {
                 if (filterStatus !== status) {
@@ -1563,7 +1788,7 @@ export default function AdminPage() {
             onClick={() => fetchOrders()}
             disabled={loading || isRefreshing}
             style={{
-              padding: isMobile ? '12px 20px' : '14px 28px',
+              padding: isMobile ? '12px 16px' : '14px 28px',
               borderRadius: '12px',
               border: '1px solid rgba(255, 255, 255, 0.1)',
               background: (loading || isRefreshing) 
@@ -1576,8 +1801,10 @@ export default function AdminPage() {
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              boxShadow: (loading || isRefreshing) ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.2)'
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: (loading || isRefreshing) ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.2)',
+              width: isMobile ? '100%' : 'auto'
             }}
             onMouseEnter={(e) => {
               if (!loading && !isRefreshing) {
@@ -2227,8 +2454,20 @@ export default function AdminPage() {
                             ✏️ แก้ไข
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`คุณต้องการลบ "${item.nameTh}" หรือไม่?`)) {
+                            onClick={async () => {
+                              const result = await Swal.fire({
+                                icon: 'question',
+                                title: 'ยืนยันการลบเมนู',
+                                text: `คุณต้องการลบ "${item.nameTh}" หรือไม่?`,
+                                showCancelButton: true,
+                                confirmButtonText: 'ลบ',
+                                cancelButtonText: 'ยกเลิก',
+                                confirmButtonColor: '#ef4444',
+                                cancelButtonColor: '#6b7280',
+                                reverseButtons: true
+                              });
+                              
+                              if (result.isConfirmed) {
                                 deleteMenuItem(item.id);
                               }
                             }}
@@ -2739,22 +2978,58 @@ export default function AdminPage() {
                 </button>
                 <button
                   onClick={async () => {
-                    const confirmed = window.confirm('⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายได้ทั้งหมด?\n\nการกระทำนี้ไม่สามารถยกเลิกได้!');
-                    if (confirmed) {
+                    const result = await Swal.fire({
+                      icon: 'warning',
+                      title: 'ยืนยันการรีเซ็ตข้อมูล',
+                      html: `
+                        <div style="text-align: center;">
+                          <div style="font-size: 1.1rem; margin-bottom: 10px;">
+                            คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายได้ทั้งหมด?
+                          </div>
+                          <div style="color: #ef4444; font-weight: 600;">
+                            ⚠️ การกระทำนี้ไม่สามารถยกเลิกได้!
+                          </div>
+                        </div>
+                      `,
+                      showCancelButton: true,
+                      confirmButtonText: 'ยืนยันลบ',
+                      cancelButtonText: 'ยกเลิก',
+                      confirmButtonColor: '#ef4444',
+                      cancelButtonColor: '#6b7280',
+                      reverseButtons: true
+                    });
+                    
+                    if (result.isConfirmed) {
                       try {
                         const response = await fetch('/api/cashflow', {
                           method: 'DELETE',
                         });
                         const data = await response.json();
                         if (response.ok) {
-                          alert('✅ รีเซ็ตข้อมูลรายได้เรียบร้อยแล้ว');
+                          await Swal.fire({
+                            icon: 'success',
+                            title: 'สำเร็จ!',
+                            text: 'รีเซ็ตข้อมูลรายได้เรียบร้อยแล้ว',
+                            confirmButtonColor: '#10b981',
+                            confirmButtonText: 'ตกลง'
+                          });
                           fetchCashflowData();
                         } else {
-                          alert('เกิดข้อผิดพลาด: ' + (data.error || 'Unknown error'));
+                          await Swal.fire({
+                            icon: 'error',
+                            title: 'เกิดข้อผิดพลาด',
+                            text: data.error || 'Unknown error',
+                            confirmButtonColor: '#ef4444'
+                          });
                         }
                       } catch (error) {
                         console.error('Error resetting cashflow:', error);
-                        alert('เกิดข้อผิดพลาดในการรีเซ็ตข้อมูล');
+                        await Swal.fire({
+                          icon: 'error',
+                          title: 'เกิดข้อผิดพลาด',
+                          text: 'เกิดข้อผิดพลาดในการรีเซ็ตข้อมูล',
+                          confirmButtonColor: '#ef4444'
+                        });
                       }
                     }
                   }}
@@ -3616,9 +3891,9 @@ export default function AdminPage() {
           <div
             style={{
               background: '#1a1a1a',
-              borderRadius: '12px',
-              padding: '24px',
-              maxWidth: '400px',
+              borderRadius: isMobile ? '16px' : '12px',
+              padding: isMobile ? '20px' : '24px',
+              maxWidth: isMobile ? '95%' : '400px',
               width: '100%',
               border: '1px solid #2a2a2a'
             }}
@@ -3626,9 +3901,9 @@ export default function AdminPage() {
           >
             <h2 style={{
               color: '#fff',
-              fontSize: '1.1rem',
+              fontSize: isMobile ? '1rem' : '1.1rem',
               fontWeight: 600,
-              marginBottom: '12px'
+              marginBottom: isMobile ? '10px' : '12px'
             }}>
               ยืนยันการลบคำสั่งซื้อ
             </h2>
@@ -3725,16 +4000,16 @@ export default function AdminPage() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-            padding: '20px'
+            padding: isMobile ? '12px' : '20px'
           }}
           onClick={() => setTableToOpen(null)}
         >
           <div
             style={{
               background: '#1a1a1a',
-              borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '500px',
+              borderRadius: isMobile ? '16px' : '20px',
+              padding: isMobile ? '20px' : '32px',
+              maxWidth: isMobile ? '95%' : '500px',
               width: '100%',
               border: '1px solid #2a2a2a',
               maxHeight: '90vh',
@@ -3744,7 +4019,7 @@ export default function AdminPage() {
           >
             <h2 style={{
               color: '#fff',
-              fontSize: '1.25rem',
+              fontSize: isMobile ? '1.1rem' : '1.25rem',
               fontWeight: 600,
               marginBottom: '6px',
               textAlign: 'center'
@@ -3753,8 +4028,8 @@ export default function AdminPage() {
             </h2>
             <p style={{
               color: '#737373',
-              fontSize: '0.9rem',
-              marginBottom: '24px',
+              fontSize: isMobile ? '0.85rem' : '0.9rem',
+              marginBottom: isMobile ? '20px' : '24px',
               textAlign: 'center'
             }}>
               กรุณาเลือกจำนวนคน
@@ -4430,181 +4705,6 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-
-      {/* Toast Notifications */}
-      <div style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        maxWidth: isMobile ? 'calc(100% - 40px)' : '400px',
-        pointerEvents: 'none'
-      }}>
-        {toasts.map((toast, index) => (
-          <div
-            key={toast.id}
-            style={{
-              background: '#1a1a1a',
-              borderRadius: '12px',
-              padding: '16px',
-              border: '1px solid #10b981',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-              pointerEvents: 'auto',
-              animation: 'slideInRight 0.3s ease-out',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              transform: `translateX(${toasts.length - index > 3 ? '100%' : '0'})`,
-              opacity: toasts.length - index > 3 ? 0 : 1
-            }}
-            onClick={() => {
-              setSelectedOrder(toast.order);
-              setToasts(prev => prev.filter(t => t.id !== toast.id));
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#34d399';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#10b981';
-            }}
-          >
-            <div style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: '#10b981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.2rem',
-                flexShrink: 0
-              }}>
-                🔔
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: '6px'
-                }}>
-                  <div>
-                    <h4 style={{
-                      color: '#10b981',
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                      margin: 0,
-                      marginBottom: '2px'
-                    }}>
-                      🆕 คำสั่งซื้อใหม่!
-                    </h4>
-                    <p style={{
-                      color: '#fff',
-                      fontSize: '0.85rem',
-                      fontWeight: 500,
-                      margin: 0
-                    }}>
-                      โต๊ะ {toast.order.tableNumber}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setToasts(prev => prev.filter(t => t.id !== toast.id));
-                    }}
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      borderRadius: '6px',
-                      border: '1px solid #333',
-                      background: '#262626',
-                      color: '#a1a1a1',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.85rem',
-                      flexShrink: 0,
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#333';
-                      e.currentTarget.style.color = '#fff';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#262626';
-                      e.currentTarget.style.color = '#a1a1a1';
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{
-                  color: '#737373',
-                  fontSize: '0.8rem',
-                  marginBottom: '6px'
-                }}>
-                  {toast.order.items.length} รายการ • ฿{toast.order.totalPrice.toLocaleString()}
-                </div>
-                {toast.order.items.length > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '4px',
-                    marginTop: '6px'
-                  }}>
-                    {toast.order.items.slice(0, 3).map((item, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          background: '#262626',
-                          color: '#10b981',
-                          padding: '3px 6px',
-                          borderRadius: '4px',
-                          fontSize: '0.7rem',
-                          fontWeight: 500,
-                          border: '1px solid #333'
-                        }}
-                      >
-                        {item.nameTh} x{item.quantity}
-                      </span>
-                    ))}
-                    {toast.order.items.length > 3 && (
-                      <span style={{
-                        background: '#262626',
-                        color: '#737373',
-                        padding: '3px 6px',
-                        borderRadius: '4px',
-                        fontSize: '0.7rem',
-                        border: '1px solid #333'
-                      }}>
-                        +{toast.order.items.length - 3} รายการ
-                      </span>
-                    )}
-                  </div>
-                )}
-                <div style={{
-                  color: '#525252',
-                  fontSize: '0.7rem',
-                  marginTop: '6px'
-                }}>
-                  {new Date(toast.order.createdAt).toLocaleTimeString('th-TH', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

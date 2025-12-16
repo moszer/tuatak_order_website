@@ -207,25 +207,6 @@ export default function LoginPage() {
             {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
         </form>
-
-        <div style={{
-          marginTop: '24px',
-          padding: '16px',
-          background: '#262626',
-          borderRadius: '8px',
-          border: '1px solid #333'
-        }}>
-          <p style={{
-            color: '#737373',
-            fontSize: '0.8rem',
-            margin: 0,
-            textAlign: 'center'
-          }}>
-            💡 Default credentials:<br />
-            <strong style={{ color: '#a1a1a1' }}>username: admin</strong><br />
-            <strong style={{ color: '#a1a1a1' }}>password: admin123</strong>
-          </p>
-        </div>
       </div>
     </div>
   );

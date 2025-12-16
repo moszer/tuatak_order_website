@@ -11,6 +11,7 @@ import {
   upload,
 } from '@imagekit/next';
 import { MenuItem } from '../types';
+import Swal from 'sweetalert2';
 
 type AddMenuItemModalProps = {
   onClose: () => void;
@@ -87,7 +88,12 @@ export function AddMenuItemModal({ onClose, onSave }: AddMenuItemModalProps) {
     try {
       validateFile(file);
     } catch (error: any) {
-      alert(error.message);
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: error.message,
+        confirmButtonColor: '#ef4444'
+      });
       return;
     }
 
@@ -110,26 +116,49 @@ export function AddMenuItemModal({ onClose, onSave }: AddMenuItemModalProps) {
       }
 
       setFormData((prev) => ({ ...prev, image: uploadResponse.url! }));
-      alert('อัพโหลดรูปภาพสำเร็จ!');
+      await Swal.fire({
+        icon: 'success',
+        title: 'สำเร็จ!',
+        text: 'อัพโหลดรูปภาพสำเร็จ!',
+        confirmButtonColor: '#10b981',
+        confirmButtonText: 'ตกลง',
+        timer: 2000,
+        showConfirmButton: true
+      });
     } catch (error: any) {
       console.error('Upload error:', error);
       const errorMessage = getUploadErrorMessage(error);
       if (errorMessage.includes('IMAGEKIT_PRIVATE_KEY')) {
-        alert(
-          'กรุณาตั้งค่า IMAGEKIT_PRIVATE_KEY ในไฟล์ .env.local\n\nดูคำแนะนำได้ที่ ImageKit Dashboard > Developer Options > API Keys'
-        );
+        await Swal.fire({
+          icon: 'warning',
+          title: 'แจ้งเตือน',
+          html: 'กรุณาตั้งค่า IMAGEKIT_PRIVATE_KEY ในไฟล์ .env.local<br/><br/>ดูคำแนะนำได้ที่ ImageKit Dashboard > Developer Options > API Keys',
+          confirmButtonColor: '#f97316',
+          confirmButtonText: 'ตกลง'
+        });
       } else {
-        alert('เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + errorMessage);
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + errorMessage,
+          confirmButtonColor: '#ef4444'
+        });
       }
     } finally {
       setUploading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.nameTh || !formData.category) {
-      alert('กรุณากรอกชื่อเมนู (ไทย/อังกฤษ) และหมวดหมู่');
+      await Swal.fire({
+        icon: 'warning',
+        title: 'แจ้งเตือน',
+        text: 'กรุณากรอกชื่อเมนู (ไทย/อังกฤษ) และหมวดหมู่',
+        confirmButtonColor: '#f97316',
+        confirmButtonText: 'ตกลง'
+      });
       return;
     }
     onSave(formData);
@@ -635,7 +664,12 @@ export function EditMenuItemModal({ item, onClose, onSave }: EditMenuItemModalPr
     try {
       validateFile(file);
     } catch (error: any) {
-      alert(error.message);
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: error.message,
+        confirmButtonColor: '#ef4444'
+      });
       return;
     }
 
@@ -658,16 +692,33 @@ export function EditMenuItemModal({ item, onClose, onSave }: EditMenuItemModalPr
       }
 
       setFormData((prev) => ({ ...prev, image: uploadResponse.url! }));
-      alert('อัพโหลดรูปภาพสำเร็จ!');
+      await Swal.fire({
+        icon: 'success',
+        title: 'สำเร็จ!',
+        text: 'อัพโหลดรูปภาพสำเร็จ!',
+        confirmButtonColor: '#10b981',
+        confirmButtonText: 'ตกลง',
+        timer: 2000,
+        showConfirmButton: true
+      });
     } catch (error: any) {
       console.error('Upload error:', error);
       const errorMessage = getUploadErrorMessage(error);
       if (errorMessage.includes('IMAGEKIT_PRIVATE_KEY')) {
-        alert(
-          'กรุณาตั้งค่า IMAGEKIT_PRIVATE_KEY ในไฟล์ .env.local\n\nดูคำแนะนำได้ที่ ImageKit Dashboard > Developer Options > API Keys'
-        );
+        await Swal.fire({
+          icon: 'warning',
+          title: 'แจ้งเตือน',
+          html: 'กรุณาตั้งค่า IMAGEKIT_PRIVATE_KEY ในไฟล์ .env.local<br/><br/>ดูคำแนะนำได้ที่ ImageKit Dashboard > Developer Options > API Keys',
+          confirmButtonColor: '#f97316',
+          confirmButtonText: 'ตกลง'
+        });
       } else {
-        alert('เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + errorMessage);
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ: ' + errorMessage,
+          confirmButtonColor: '#ef4444'
+        });
       }
     } finally {
       setUploading(false);
