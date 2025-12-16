@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useCart } from '../context/CartContext';
+import Swal from 'sweetalert2';
 
 interface TableBill {
     adultCount: number;
