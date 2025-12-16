@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   title: "TUATAK Shabunt | ชาบูสดใหม่ - Premium Thai Shabu & Grill",
   description: "Experience authentic Thai shabu-shabu with fresh ingredients, premium meats, and signature dipping sauces. Order online for delivery or dine-in at TUATAK Shabunt.",
   keywords: "Thai food, shabu, shabunt, TUATAK, ชาบู, grilled seafood, Thai restaurant",
+  // ลบ icons ออก หรือไม่ต้องระบุ Next.js จะใช้ favicon.ico อัตโนมัติ
 };
 
 export default function RootLayout({
