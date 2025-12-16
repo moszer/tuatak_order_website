@@ -44,11 +44,6 @@ export default function Header() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loadingBill, setLoadingBill] = useState(false);
 
-    // Don't show header on admin page
-    if (pathname === '/admin') {
-        return null;
-    }
-
     // Extract table number from pathname (e.g., "/table1" -> "1")
     const tableNumber = pathname?.startsWith('/table') ? pathname.replace('/table', '') : null;
 
@@ -106,6 +101,11 @@ export default function Header() {
             setOrders([]);
         }
     };
+
+    // Don't show header on admin page or login page
+    if (pathname === '/admin' || pathname === '/admin/login') {
+        return null;
+    }
 
     return (
         <>

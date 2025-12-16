@@ -133,6 +133,30 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Create users table for admin authentication
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_username (username)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Insert default admin user if users table is empty (password: admin123)
+    const [existingUsers] = await connection.query('SELECT COUNT(*) as count FROM users') as any;
+    if (existingUsers[0].count === 0) {
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await connection.query(
+        `INSERT INTO users (username, password) VALUES (?, ?)`,
+        ['admin', hashedPassword]
+      );
+      console.log('Default admin user created (username: admin, password: admin123)');
+    }
+
     // Insert default menu items if table is empty
     const [existingItems] = await connection.query('SELECT COUNT(*) as count FROM menu_items') as any;
     if (existingItems[0].count === 0) {

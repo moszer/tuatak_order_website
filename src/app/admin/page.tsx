@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Order } from '@/lib/mysql';
 import { AddMenuItemModal, EditMenuItemModal } from './components/MenuModals';
 import { MenuItem } from './types';
@@ -35,6 +36,9 @@ interface OrderWithId extends Order {
 }
 
 export default function AdminPage() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
   const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'tables' | 'cashflow'>('orders');
   const [cashflowData, setCashflowData] = useState({
     todayRevenue: 0,
@@ -76,8 +80,37 @@ export default function AdminPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [tableBills, setTableBills] = useState<Record<string, any>>({});
   const [toasts, setToasts] = useState<Array<{ id: string; order: OrderWithId; timestamp: number }>>([]);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousOrderIdsRef = useRef<Set<string>>(new Set());
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/verify');
+        const data = await response.json();
+        if (data.authenticated) {
+          setIsAuthenticated(true);
+        } else {
+          router.push('/admin/login');
+        }
+      } catch (error) {
+        router.push('/admin/login');
+      } finally {
+        setAuthChecking(false);
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -90,7 +123,75 @@ export default function AdminPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/admin/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Logout error:', error);
+      router.push('/admin/login');
+    }
+  };
+
+  // Handle change password
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('รหัสผ่านใหม่ไม่ตรงกัน');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert('✅ เปลี่ยนรหัสผ่านสำเร็จ');
+        setShowChangePasswordModal(false);
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setPasswordError('');
+      } else {
+        setPasswordError(data.error || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน');
+      }
+    } catch (error) {
+      setPasswordError('เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   useEffect(() => {
+    // Only fetch data if authenticated
+    if (!isAuthenticated) return;
+
     // Reset previous order IDs when filter changes to avoid false notifications
     previousOrderIdsRef.current = new Set();
     fetchOrders();
@@ -127,7 +228,7 @@ export default function AdminPage() {
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [filterStatus]);
+  }, [filterStatus, isAuthenticated]);
 
   const playNotificationSound = () => {
     if (!soundEnabled) return;
@@ -428,6 +529,8 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     if (activeTab === 'menu') {
       fetchMenuItems();
     } else if (activeTab === 'tables') {
@@ -435,13 +538,15 @@ export default function AdminPage() {
     } else if (activeTab === 'cashflow') {
       fetchCashflowData();
     }
-  }, [activeTab]);
+  }, [activeTab, isAuthenticated]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     if (activeTab === 'cashflow') {
       fetchCashflowData();
     }
-  }, [cashflowPeriod]);
+  }, [cashflowPeriod, isAuthenticated]);
 
   const fetchCashflowData = async () => {
     try {
@@ -708,11 +813,36 @@ export default function AdminPage() {
   const preparingCount = orders.filter(order => order.status === 'preparing').length;
   const readyCount = orders.filter(order => order.status === 'ready').length;
 
+  // Show loading state while checking authentication
+  if (authChecking) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#0f0f0f',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          color: '#a1a1a1',
+          fontSize: '1rem'
+        }}>
+          กำลังตรวจสอบสิทธิ์...
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0f0f0f',
-      padding: isMobile ? '16px 12px' : '40px 20px'
+      background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)',
+      padding: isMobile ? '20px 16px' : '48px 32px'
     }} className="admin-container">
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -733,6 +863,16 @@ export default function AdminPage() {
           @keyframes pulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.7; transform: scale(1.1); }
+          }
+          @keyframes slideDown {
+            from {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
           }
           @media (max-width: 768px) {
             .admin-container {
@@ -804,17 +944,19 @@ export default function AdminPage() {
         `
       }} />
       <div style={{
-        maxWidth: '1600px',
+        maxWidth: '1800px',
         margin: '0 auto',
-        padding: isMobile ? '0 8px' : '0 20px'
+        width: '100%'
       }}>
         {/* Top Bar with Tabs and Controls */}
         <div style={{
-          background: '#1a1a1a',
-          borderRadius: isMobile ? '12px' : '16px',
-          padding: isMobile ? '16px' : '20px 24px',
-          marginBottom: isMobile ? '20px' : '32px',
-          border: '1px solid #2a2a2a'
+          background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(30, 30, 30, 0.95) 100%)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: isMobile ? '16px' : '20px',
+          padding: isMobile ? '20px' : '28px 32px',
+          marginBottom: isMobile ? '24px' : '40px',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)'
         }} className="admin-top-bar">
           <div style={{
             display: 'flex',
@@ -827,35 +969,43 @@ export default function AdminPage() {
             {/* Tabs */}
             <div style={{
               display: 'flex',
-              gap: isMobile ? '6px' : '8px',
+              gap: isMobile ? '8px' : '12px',
               flexWrap: 'wrap',
-              width: isMobile ? '100%' : 'auto'
+              width: isMobile ? '100%' : 'auto',
+              background: 'rgba(0, 0, 0, 0.3)',
+              padding: '6px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.05)'
             }} className="admin-tabs">
               <button
                 onClick={() => setActiveTab('orders')}
                 style={{
-                  padding: isMobile ? '10px 16px' : '12px 24px',
-                  borderRadius: '8px',
+                  padding: isMobile ? '12px 20px' : '14px 28px',
+                  borderRadius: '10px',
                   border: 'none',
-                  background: activeTab === 'orders' ? '#10b981' : '#262626',
+                  background: activeTab === 'orders' 
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                    : 'transparent',
                   color: activeTab === 'orders' ? '#fff' : '#a1a1a1',
                   cursor: 'pointer',
-                  fontSize: isMobile ? '0.85rem' : '0.95rem',
+                  fontSize: isMobile ? '0.9rem' : '1rem',
                   fontWeight: 600,
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   flex: isMobile ? '1' : 'none',
-                  minWidth: isMobile ? '0' : 'auto'
+                  minWidth: isMobile ? '0' : 'auto',
+                  boxShadow: activeTab === 'orders' ? '0 4px 16px rgba(16, 185, 129, 0.3)' : 'none',
+                  transform: activeTab === 'orders' ? 'translateY(-1px)' : 'none'
                 }}
                 className="admin-tab-button"
                 onMouseEnter={(e) => {
                   if (activeTab !== 'orders') {
-                    e.currentTarget.style.background = '#333';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
                     e.currentTarget.style.color = '#fff';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (activeTab !== 'orders') {
-                    e.currentTarget.style.background = '#262626';
+                    e.currentTarget.style.background = 'transparent';
                     e.currentTarget.style.color = '#a1a1a1';
                   }
                 }}
@@ -1003,48 +1153,181 @@ export default function AdminPage() {
                   </span>
                 )}
               </div>
-              <button
-                onClick={() => {
-                  setSoundEnabled(!soundEnabled);
-                  if (!soundEnabled) {
-                    playNotificationSound();
-                  }
-                }}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid #2a2a2a',
-                  background: soundEnabled ? '#10b981' : '#262626',
-                  color: soundEnabled ? '#fff' : '#a1a1a1',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  minWidth: isMobile ? 'auto' : '120px',
-                  justifyContent: 'center'
-                }}
-                title={soundEnabled ? 'ปิดเสียงแจ้งเตือน' : 'เปิดเสียงแจ้งเตือน'}
-                onMouseEnter={(e) => {
-                  if (!soundEnabled) {
-                    e.currentTarget.style.background = '#333';
-                    e.currentTarget.style.color = '#fff';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!soundEnabled) {
-                    e.currentTarget.style.background = '#262626';
-                    e.currentTarget.style.color = '#a1a1a1';
-                  }
-                }}
-              >
-                <span style={{ fontSize: '1rem' }}>{soundEnabled ? '🔔' : '🔕'}</span>
-                {!isMobile && (
-                  <span>{soundEnabled ? 'เปิดเสียง' : 'ปิดเสียง'}</span>
+              {/* Settings Menu */}
+              <div style={{ position: 'relative' }} data-menu-container>
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #2a2a2a',
+                    background: showMenu ? '#10b981' : '#262626',
+                    color: showMenu ? '#fff' : '#a1a1a1',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    fontWeight: 600,
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '40px',
+                    height: '40px'
+                  }}
+                  title="ตั้งค่า"
+                  onMouseEnter={(e) => {
+                    if (!showMenu) {
+                      e.currentTarget.style.background = '#333';
+                      e.currentTarget.style.color = '#fff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!showMenu) {
+                      e.currentTarget.style.background = '#262626';
+                      e.currentTarget.style.color = '#a1a1a1';
+                    }
+                  }}
+                >
+                  ⚙️
+                </button>
+                
+                {/* Dropdown Menu */}
+                {showMenu && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: '8px',
+                      background: '#1a1a1a',
+                      borderRadius: '12px',
+                      border: '1px solid #2a2a2a',
+                      padding: '8px',
+                      minWidth: '200px',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+                      zIndex: 1000,
+                      animation: 'slideDown 0.2s ease-out'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Sound Toggle */}
+                    <button
+                      onClick={() => {
+                        setSoundEnabled(!soundEnabled);
+                        if (!soundEnabled) {
+                          playNotificationSound();
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                        color: soundEnabled ? '#10b981' : '#a1a1a1',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        textAlign: 'left'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#262626';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = soundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'transparent';
+                      }}
+                    >
+                      <span style={{ fontSize: '1.1rem' }}>{soundEnabled ? '🔔' : '🔕'}</span>
+                      <span>{soundEnabled ? 'เปิดเสียง' : 'ปิดเสียง'}</span>
+                    </button>
+
+                    {/* Divider */}
+                    <div style={{
+                      height: '1px',
+                      background: '#2a2a2a',
+                      margin: '8px 0'
+                    }} />
+
+                    {/* Change Password */}
+                    <button
+                      onClick={() => {
+                        setShowChangePasswordModal(true);
+                        setShowMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#a1a1a1',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        textAlign: 'left'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#262626';
+                        e.currentTarget.style.color = '#10b981';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = '#a1a1a1';
+                      }}
+                    >
+                      <span style={{ fontSize: '1.1rem' }}>🔑</span>
+                      <span>เปลี่ยนรหัสผ่าน</span>
+                    </button>
+
+                    {/* Divider */}
+                    <div style={{
+                      height: '1px',
+                      background: '#2a2a2a',
+                      margin: '8px 0'
+                    }} />
+
+                    {/* Logout */}
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setShowMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        textAlign: 'left'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <span style={{ fontSize: '1.1rem' }}>🚪</span>
+                      <span>ออกจากระบบ</span>
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1058,102 +1341,162 @@ export default function AdminPage() {
           gridTemplateColumns: isMobile 
             ? '1fr 1fr' 
             : 'repeat(4, 1fr)',
-          gap: '16px',
-          marginBottom: '24px'
+          gap: isMobile ? '12px' : '20px',
+          marginBottom: isMobile ? '24px' : '32px'
         }} className="admin-stats-grid">
           <div style={{
-            background: '#1a1a1a',
-            borderRadius: '12px',
-            padding: '24px',
-            border: '1px solid #2a2a2a'
+            background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%)',
+            borderRadius: '16px',
+            padding: isMobile ? '20px' : '28px',
+            border: '1px solid rgba(249, 115, 22, 0.2)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+            transition: 'all 0.3s ease',
+            position: 'relative',
+            overflow: 'hidden'
           }}
           className="admin-stat-card"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(249, 115, 22, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)';
+          }}
           >
             <div style={{ 
               color: '#f97316', 
-              fontSize: '2.5rem', 
+              fontSize: isMobile ? '2rem' : '2.75rem', 
               fontWeight: 700,
-              marginBottom: '8px',
-              fontFamily: 'system-ui, -apple-system, sans-serif'
+              marginBottom: '12px',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              lineHeight: '1',
+              textShadow: '0 2px 8px rgba(249, 115, 22, 0.3)'
             }}>
               {pendingCount}
             </div>
             <div style={{ 
-              color: '#a1a1a1', 
-              fontSize: '0.9rem', 
-              fontWeight: 500
+              color: '#d1d5db', 
+              fontSize: isMobile ? '0.85rem' : '0.95rem', 
+              fontWeight: 600,
+              letterSpacing: '0.3px'
             }}>
               ⏳ รอดำเนินการ
             </div>
           </div>
           <div style={{
-            background: '#1a1a1a',
-            borderRadius: '12px',
-            padding: '24px',
-            border: '1px solid #2a2a2a'
+            background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%)',
+            borderRadius: '16px',
+            padding: isMobile ? '20px' : '28px',
+            border: '1px solid rgba(234, 179, 8, 0.2)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+            transition: 'all 0.3s ease',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(234, 179, 8, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)';
           }}
           >
             <div style={{ 
               color: '#eab308', 
-              fontSize: '2.5rem', 
+              fontSize: isMobile ? '2rem' : '2.75rem', 
               fontWeight: 700,
-              marginBottom: '8px',
-              fontFamily: 'system-ui, -apple-system, sans-serif'
+              marginBottom: '12px',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              lineHeight: '1',
+              textShadow: '0 2px 8px rgba(234, 179, 8, 0.3)'
             }}>
               {preparingCount}
             </div>
             <div style={{ 
-              color: '#a1a1a1', 
-              fontSize: '0.9rem', 
-              fontWeight: 500
+              color: '#d1d5db', 
+              fontSize: isMobile ? '0.85rem' : '0.95rem', 
+              fontWeight: 600,
+              letterSpacing: '0.3px'
             }}>
               🔥 กำลังเตรียม
             </div>
           </div>
           <div style={{
-            background: '#1a1a1a',
-            borderRadius: '12px',
-            padding: '24px',
-            border: '1px solid #2a2a2a'
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%)',
+            borderRadius: '16px',
+            padding: isMobile ? '20px' : '28px',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+            transition: 'all 0.3s ease',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(16, 185, 129, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)';
           }}
           >
             <div style={{ 
               color: '#10b981', 
-              fontSize: '2.5rem', 
+              fontSize: isMobile ? '2rem' : '2.75rem', 
               fontWeight: 700,
-              marginBottom: '8px',
-              fontFamily: 'system-ui, -apple-system, sans-serif'
+              marginBottom: '12px',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              lineHeight: '1',
+              textShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
             }}>
               {readyCount}
             </div>
             <div style={{ 
-              color: '#a1a1a1', 
-              fontSize: '0.9rem', 
-              fontWeight: 500
+              color: '#d1d5db', 
+              fontSize: isMobile ? '0.85rem' : '0.95rem', 
+              fontWeight: 600,
+              letterSpacing: '0.3px'
             }}>
               ✅ พร้อมเสิร์ฟ
             </div>
           </div>
           <div style={{
-            background: '#1a1a1a',
-            borderRadius: '12px',
-            padding: '24px',
-            border: '1px solid #2a2a2a'
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%)',
+            borderRadius: '16px',
+            padding: isMobile ? '20px' : '28px',
+            border: '1px solid rgba(168, 85, 247, 0.2)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+            transition: 'all 0.3s ease',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)';
+            e.currentTarget.style.boxShadow = '0 8px 32px rgba(168, 85, 247, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)';
           }}
           >
             <div style={{ 
               color: '#a855f7', 
-              fontSize: '2rem', 
+              fontSize: isMobile ? '1.75rem' : '2.25rem', 
               fontWeight: 700,
-              marginBottom: '8px',
-              fontFamily: 'system-ui, -apple-system, sans-serif'
+              marginBottom: '12px',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              lineHeight: '1',
+              textShadow: '0 2px 8px rgba(168, 85, 247, 0.3)'
             }}>
               ฿{totalRevenue.toLocaleString()}
             </div>
             <div style={{ 
-              color: '#a1a1a1', 
-              fontSize: '0.9rem', 
-              fontWeight: 500
+              color: '#d1d5db', 
+              fontSize: isMobile ? '0.85rem' : '0.95rem', 
+              fontWeight: 600,
+              letterSpacing: '0.3px'
             }}>
               💰 รายได้รวม
             </div>
@@ -1162,32 +1505,54 @@ export default function AdminPage() {
 
         {/* Filter and Refresh */}
         <div style={{
-          marginBottom: '24px',
+          marginBottom: isMobile ? '24px' : '32px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '12px'
+          gap: '16px',
+          background: 'rgba(26, 26, 26, 0.6)',
+          padding: isMobile ? '16px' : '20px',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(10px)'
         }}>
           <div style={{
             display: 'flex',
-            gap: '8px',
-            flexWrap: 'wrap'
+            gap: '10px',
+            flexWrap: 'wrap',
+            flex: '1'
           }}>
           {['all', 'pending', 'preparing', 'ready', 'served', 'paid'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
               style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                border: '1px solid #2a2a2a',
-                background: filterStatus === status ? '#10b981' : '#1a1a1a',
-                color: filterStatus === status ? '#fff' : '#a1a1a1',
+                padding: isMobile ? '10px 18px' : '12px 24px',
+                borderRadius: '10px',
+                border: filterStatus === status ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
+                background: filterStatus === status 
+                  ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                  : 'rgba(255, 255, 255, 0.03)',
+                color: filterStatus === status ? '#fff' : '#d1d5db',
                 cursor: 'pointer',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                transition: 'all 0.2s ease'
+                fontSize: isMobile ? '0.85rem' : '0.9rem',
+                fontWeight: 600,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: filterStatus === status ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none',
+                transform: filterStatus === status ? 'translateY(-2px)' : 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (filterStatus !== status) {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (filterStatus !== status) {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                }
               }}
             >
               {status === 'all' ? 'ทั้งหมด' : getStatusLabel(status as Order['status'])}
@@ -1198,35 +1563,40 @@ export default function AdminPage() {
             onClick={() => fetchOrders()}
             disabled={loading || isRefreshing}
             style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: '1px solid #2a2a2a',
-              background: (loading || isRefreshing) ? '#1a1a1a' : '#262626',
-              color: (loading || isRefreshing) ? '#737373' : '#fff',
+              padding: isMobile ? '12px 20px' : '14px 28px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: (loading || isRefreshing) 
+                ? 'rgba(255, 255, 255, 0.05)' 
+                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)',
+              color: (loading || isRefreshing) ? '#737373' : '#10b981',
               cursor: (loading || isRefreshing) ? 'not-allowed' : 'pointer',
-              fontSize: '0.85rem',
-              fontWeight: 500,
-              transition: 'all 0.2s ease',
+              fontSize: isMobile ? '0.85rem' : '0.95rem',
+              fontWeight: 600,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '10px',
+              boxShadow: (loading || isRefreshing) ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.2)'
             }}
             onMouseEnter={(e) => {
               if (!loading && !isRefreshing) {
-                e.currentTarget.style.background = '#333';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 107, 74, 0.3)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.2) 100%)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.3)';
               }
             }}
             onMouseLeave={(e) => {
               if (!loading && !isRefreshing) {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(255, 107, 74, 0.2)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
               }
             }}
           >
             <span style={{
               display: 'inline-block',
-              animation: isRefreshing ? 'spin 1s linear infinite' : 'none'
+              animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+              fontSize: '1.1rem'
             }}>🔄</span>
             <span>รีเฟรช</span>
           </button>
@@ -1287,7 +1657,7 @@ export default function AdminPage() {
               return (
                 <div style={{
                   display: 'grid',
-                  gap: '24px'
+                  gap: isMobile ? '20px' : '28px'
                 }}>
                   {tableNumbers.map((tableNum) => {
                     // Filter out orders with no items
@@ -1892,151 +2262,252 @@ export default function AdminPage() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '24px',
+              marginBottom: isMobile ? '24px' : '32px',
               flexWrap: 'wrap',
-              gap: '12px'
+              gap: '16px',
+              background: 'rgba(26, 26, 26, 0.6)',
+              padding: isMobile ? '20px' : '24px',
+              borderRadius: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(10px)'
             }}>
-              <h2 style={{
-                color: '#fff',
-                fontSize: '1.25rem',
-                fontWeight: 600
-              }}>
-                จัดการสถานะโต๊ะ
-              </h2>
+              <div>
+                <h2 style={{
+                  color: '#fff',
+                  fontSize: isMobile ? '1.15rem' : '1.5rem',
+                  fontWeight: 700,
+                  margin: 0,
+                  marginBottom: '4px',
+                  letterSpacing: '-0.02em'
+                }}>
+                  🪑 จัดการสถานะโต๊ะ
+                </h2>
+                <p style={{
+                  color: '#a1a1a1',
+                  fontSize: '0.9rem',
+                  margin: 0,
+                  fontWeight: 400
+                }}>
+                  เปิด/ปิดโต๊ะและจัดการสถานะการใช้งาน
+                </p>
+              </div>
               <button
                 onClick={fetchTableStatuses}
                 disabled={tablesLoading}
                 style={{
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  border: '1px solid #2a2a2a',
-                  background: '#262626',
-                  color: tablesLoading ? '#737373' : '#fff',
+                  padding: isMobile ? '12px 20px' : '14px 28px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: tablesLoading 
+                    ? 'rgba(255, 255, 255, 0.05)' 
+                    : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                  color: tablesLoading ? '#737373' : '#10b981',
                   cursor: tablesLoading ? 'not-allowed' : 'pointer',
-                  fontSize: '0.85rem',
-                  fontWeight: 500
+                  fontSize: isMobile ? '0.85rem' : '0.95rem',
+                  fontWeight: 600,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  boxShadow: tablesLoading ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  if (!tablesLoading) {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.2) 100%)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!tablesLoading) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
+                  }
                 }}
               >
-                🔄 รีเฟรช
+                <span style={{
+                  display: 'inline-block',
+                  animation: tablesLoading ? 'spin 1s linear infinite' : 'none',
+                  fontSize: '1.1rem'
+                }}>🔄</span>
+                <span>รีเฟรช</span>
               </button>
             </div>
 
             {/* Buffet Pricing Information */}
             <div style={{
-              background: '#1a1a1a',
-              borderRadius: '12px',
-              padding: '24px',
-              border: '1px solid #2a2a2a',
-              marginBottom: '24px'
+              background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(30, 30, 30, 0.95) 100%)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '20px',
+              padding: isMobile ? '24px' : '32px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              marginBottom: isMobile ? '24px' : '32px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)'
             }}>
               <h3 style={{
                 color: '#fff',
-                fontSize: '1.1rem',
-                fontWeight: 600,
-                marginBottom: '20px',
-                textAlign: 'center'
+                fontSize: isMobile ? '1.15rem' : '1.35rem',
+                fontWeight: 700,
+                marginBottom: isMobile ? '20px' : '28px',
+                textAlign: 'center',
+                letterSpacing: '-0.02em'
               }}>
                 💰 ราคาบุฟเฟ่ต์
               </h3>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: '12px'
+                gridTemplateColumns: isMobile 
+                  ? 'repeat(2, 1fr)' 
+                  : 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: isMobile ? '12px' : '16px'
               }}>
                 <div style={{
-                  padding: '16px',
-                  background: '#262626',
-                  borderRadius: '10px',
-                  border: '1px solid #333'
-                }}>
+                  padding: isMobile ? '20px' : '24px',
+                  background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(249, 115, 22, 0.2)',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(249, 115, 22, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.2)';
+                }}
+                >
                   <div style={{
                     color: '#f97316',
-                    fontSize: '0.9rem',
+                    fontSize: isMobile ? '0.85rem' : '0.95rem',
                     fontWeight: 600,
-                    marginBottom: '6px'
+                    marginBottom: '12px',
+                    letterSpacing: '0.3px'
                   }}>
                     👤 ราคาผู้ใหญ่
                   </div>
                   <div style={{
                     color: '#fff',
-                    fontSize: '1.3rem',
-                    fontWeight: 600
+                    fontSize: isMobile ? '1.25rem' : '1.5rem',
+                    fontWeight: 700,
+                    fontFamily: 'system-ui, -apple-system, sans-serif'
                   }}>
                     ท่านละ 199.-
                   </div>
                 </div>
 
                 <div style={{
-                  padding: '16px',
-                  background: '#262626',
-                  borderRadius: '10px',
-                  border: '1px solid #333'
-                }}>
+                  padding: isMobile ? '20px' : '24px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.2)';
+                }}
+                >
                   <div style={{
                     color: '#10b981',
-                    fontSize: '0.9rem',
+                    fontSize: isMobile ? '0.85rem' : '0.95rem',
                     fontWeight: 600,
-                    marginBottom: '6px'
+                    marginBottom: '12px',
+                    letterSpacing: '0.3px'
                   }}>
                     🥤 น้ำรีฟิลเติมสะใจ!
                   </div>
                   <div style={{
                     color: '#fff',
-                    fontSize: '1.3rem',
-                    fontWeight: 600
+                    fontSize: isMobile ? '1.25rem' : '1.5rem',
+                    fontWeight: 700,
+                    fontFamily: 'system-ui, -apple-system, sans-serif'
                   }}>
                     39.-
                   </div>
                 </div>
 
                 <div style={{
-                  padding: '16px',
-                  background: '#262626',
-                  borderRadius: '10px',
-                  border: '1px solid #333'
-                }}>
+                  padding: isMobile ? '20px' : '24px',
+                  background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(234, 179, 8, 0.2)',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(234, 179, 8, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.2)';
+                }}
+                >
                   <div style={{
                     color: '#eab308',
-                    fontSize: '0.9rem',
+                    fontSize: isMobile ? '0.85rem' : '0.95rem',
                     fontWeight: 600,
-                    marginBottom: '6px'
+                    marginBottom: '12px',
+                    letterSpacing: '0.3px'
                   }}>
                     👶 เด็กสูงไม่เกิน 120 ซม
                   </div>
                   <div style={{
                     color: '#fff',
-                    fontSize: '1.3rem',
-                    fontWeight: 600,
-                    marginBottom: '2px'
+                    fontSize: isMobile ? '1.25rem' : '1.5rem',
+                    fontWeight: 700,
+                    marginBottom: '4px',
+                    fontFamily: 'system-ui, -apple-system, sans-serif'
                   }}>
                     เพียงราคา 130.-
                   </div>
                   <div style={{
-                    color: '#a1a1a1',
-                    fontSize: '0.8rem'
+                    color: '#d1d5db',
+                    fontSize: isMobile ? '0.75rem' : '0.85rem',
+                    fontWeight: 400
                   }}>
                     รวมเครื่องดื่ม
                   </div>
                 </div>
 
                 <div style={{
-                  padding: '16px',
-                  background: '#262626',
-                  borderRadius: '10px',
-                  border: '1px solid #333'
-                }}>
+                  padding: isMobile ? '20px' : '24px',
+                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(168, 85, 247, 0.2)',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(168, 85, 247, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.2)';
+                }}
+                >
                   <div style={{
                     color: '#a855f7',
-                    fontSize: '0.9rem',
+                    fontSize: isMobile ? '0.85rem' : '0.95rem',
                     fontWeight: 600,
-                    marginBottom: '6px'
+                    marginBottom: '12px',
+                    letterSpacing: '0.3px'
                   }}>
                     🎁 เด็กสูงไม่เกิน 100 ซม
                   </div>
                   <div style={{
                     color: '#10b981',
-                    fontSize: '1.3rem',
-                    fontWeight: 600
+                    fontSize: isMobile ? '1.25rem' : '1.5rem',
+                    fontWeight: 700,
+                    fontFamily: 'system-ui, -apple-system, sans-serif'
                   }}>
                     ทานฟรี!
                   </div>
@@ -2048,16 +2519,27 @@ export default function AdminPage() {
               <div style={{
                 textAlign: 'center',
                 color: '#a1a1a1',
-                padding: '40px',
-                fontSize: '1rem'
+                padding: '60px 40px',
+                fontSize: '1rem',
+                background: 'rgba(26, 26, 26, 0.5)',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.05)'
               }}>
-                กำลังโหลด...
+                <div style={{
+                  display: 'inline-block',
+                  animation: 'spin 1s linear infinite',
+                  fontSize: '2rem',
+                  marginBottom: '16px'
+                }}>🔄</div>
+                <div>กำลังโหลด...</div>
               </div>
             ) : (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                gap: '12px'
+                gridTemplateColumns: isMobile 
+                  ? 'repeat(2, 1fr)' 
+                  : 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: isMobile ? '16px' : '20px'
               }}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((tableNum) => {
                   const tableNumber = tableNum.toString();
@@ -2066,66 +2548,109 @@ export default function AdminPage() {
                     <div
                       key={tableNum}
                       style={{
-                        background: '#1a1a1a',
-                        borderRadius: '12px',
-                        padding: '20px',
-                        border: '1px solid #2a2a2a',
+                        background: isReady 
+                          ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(26, 26, 26, 0.95) 100%)'
+                          : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(26, 26, 26, 0.95) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        borderRadius: '20px',
+                        padding: isMobile ? '24px' : '28px',
+                        border: isReady 
+                          ? '1px solid rgba(16, 185, 129, 0.3)' 
+                          : '1px solid rgba(239, 68, 68, 0.3)',
                         textAlign: 'center',
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: isReady 
+                          ? '0 4px 20px rgba(16, 185, 129, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+                          : '0 4px 20px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+                        e.currentTarget.style.boxShadow = isReady
+                          ? '0 12px 32px rgba(16, 185, 129, 0.25), 0 0 0 1px rgba(16, 185, 129, 0.4)'
+                          : '0 12px 32px rgba(239, 68, 68, 0.25), 0 0 0 1px rgba(239, 68, 68, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                        e.currentTarget.style.boxShadow = isReady 
+                          ? '0 4px 20px rgba(16, 185, 129, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+                          : '0 4px 20px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05)';
                       }}
                     >
                       <div style={{
-                        fontSize: '2.5rem',
-                        marginBottom: '12px'
+                        fontSize: isMobile ? '2.5rem' : '3rem',
+                        marginBottom: '16px',
+                        filter: isReady ? 'drop-shadow(0 4px 8px rgba(16, 185, 129, 0.3))' : 'drop-shadow(0 4px 8px rgba(239, 68, 68, 0.3))',
+                        transition: 'all 0.3s ease'
                       }}>
                         🪑
                       </div>
                       <div style={{
                         color: '#fff',
-                        fontSize: '1.1rem',
-                        fontWeight: 600,
-                        marginBottom: '12px'
+                        fontSize: isMobile ? '1.1rem' : '1.25rem',
+                        fontWeight: 700,
+                        marginBottom: '16px',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        letterSpacing: '-0.02em'
                       }}>
                         โต๊ะ {tableNumber}
                       </div>
                       <div style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        background: isReady ? '#10b981' : '#ef4444',
+                        padding: isMobile ? '8px 16px' : '10px 20px',
+                        borderRadius: '12px',
+                        background: isReady 
+                          ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                          : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                         color: 'white',
-                        fontSize: '0.8rem',
-                        fontWeight: 500,
-                        marginBottom: '12px'
+                        fontSize: isMobile ? '0.85rem' : '0.9rem',
+                        fontWeight: 600,
+                        marginBottom: isReady ? '16px' : '16px',
+                        display: 'inline-block',
+                        boxShadow: isReady 
+                          ? '0 4px 12px rgba(16, 185, 129, 0.3)'
+                          : '0 4px 12px rgba(239, 68, 68, 0.3)'
                       }}>
                         {isReady ? '✓ พร้อมใช้งาน' : '✗ ยังไม่พร้อม'}
                       </div>
-                      <button
-                        onClick={() => updateTableStatus(tableNumber, !isReady)}
-                        style={{
-                          width: '100%',
-                          padding: '10px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: isReady ? '#ef4444' : '#10b981',
-                          color: 'white',
-                          cursor: 'pointer',
-                          fontSize: '0.85rem',
-                          fontWeight: 500,
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        {isReady ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
-                      </button>
+                      {!isReady && (
+                        <button
+                          onClick={() => updateTableStatus(tableNumber, true)}
+                          style={{
+                            width: '100%',
+                            padding: isMobile ? '12px' : '14px',
+                            borderRadius: '12px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontSize: isMobile ? '0.85rem' : '0.9rem',
+                            fontWeight: 600,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                          }}
+                        >
+                          เปิดใช้งาน
+                        </button>
+                      )}
                       {isReady && (
                         <div style={{
-                          marginTop: '10px',
-                          padding: '10px',
-                          background: '#262626',
-                          borderRadius: '6px',
-                          fontSize: '0.8rem',
+                          marginTop: '16px',
+                          padding: isMobile ? '10px' : '12px',
+                          background: 'rgba(16, 185, 129, 0.1)',
+                          borderRadius: '10px',
+                          fontSize: isMobile ? '0.8rem' : '0.85rem',
                           color: '#10b981',
-                          fontWeight: 500,
-                          border: '1px solid #333'
+                          fontWeight: 600,
+                          border: '1px solid rgba(16, 185, 129, 0.2)'
                         }}>
                           💰 เปิดใช้งานแล้ว
                         </div>
@@ -3602,6 +4127,308 @@ export default function AdminPage() {
           onClose={() => setShowAddMenuModal(false)}
           onSave={addMenuItem}
         />
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+          onClick={() => {
+            setShowChangePasswordModal(false);
+            setPasswordForm({
+              currentPassword: '',
+              newPassword: '',
+              confirmPassword: '',
+            });
+            setPasswordError('');
+          }}
+        >
+          <div
+            style={{
+              background: '#1a1a1a',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '500px',
+              width: '100%',
+              border: '1px solid #2a2a2a',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '24px',
+              }}
+            >
+              <h2
+                style={{
+                  color: '#fff',
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  margin: 0,
+                }}
+              >
+                🔑 เปลี่ยนรหัสผ่าน
+              </h2>
+              <button
+                onClick={() => {
+                  setShowChangePasswordModal(false);
+                  setPasswordForm({
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: '',
+                  });
+                  setPasswordError('');
+                }}
+                style={{
+                  background: '#262626',
+                  border: '1px solid #333',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
+                  color: '#a1a1a1',
+                  cursor: 'pointer',
+                  fontSize: '1.2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {passwordError && (
+              <div
+                style={{
+                  background: '#262626',
+                  border: '1px solid #ef4444',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '20px',
+                  color: '#ef4444',
+                  fontSize: '0.85rem',
+                }}
+              >
+                {passwordError}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '20px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  color: '#a1a1a1',
+                  fontSize: '0.85rem',
+                  marginBottom: '8px',
+                  fontWeight: 500,
+                }}
+              >
+                รหัสผ่านเดิม
+              </label>
+              <input
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(e) =>
+                  setPasswordForm({
+                    ...passwordForm,
+                    currentPassword: e.target.value,
+                  })
+                }
+                disabled={changingPassword}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #333',
+                  background: '#262626',
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  opacity: changingPassword ? 0.6 : 1,
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#10b981')}
+                onBlur={(e) => (e.target.style.borderColor = '#333')}
+                placeholder="กรอกรหัสผ่านเดิม"
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  color: '#a1a1a1',
+                  fontSize: '0.85rem',
+                  marginBottom: '8px',
+                  fontWeight: 500,
+                }}
+              >
+                รหัสผ่านใหม่
+              </label>
+              <input
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={(e) =>
+                  setPasswordForm({
+                    ...passwordForm,
+                    newPassword: e.target.value,
+                  })
+                }
+                disabled={changingPassword}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #333',
+                  background: '#262626',
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  opacity: changingPassword ? 0.6 : 1,
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#10b981')}
+                onBlur={(e) => (e.target.style.borderColor = '#333')}
+                placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)"
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  color: '#a1a1a1',
+                  fontSize: '0.85rem',
+                  marginBottom: '8px',
+                  fontWeight: 500,
+                }}
+              >
+                ยืนยันรหัสผ่านใหม่
+              </label>
+              <input
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) =>
+                  setPasswordForm({
+                    ...passwordForm,
+                    confirmPassword: e.target.value,
+                  })
+                }
+                disabled={changingPassword}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #333',
+                  background: '#262626',
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  opacity: changingPassword ? 0.6 : 1,
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#10b981')}
+                onBlur={(e) => (e.target.style.borderColor = '#333')}
+                placeholder="ยืนยันรหัสผ่านใหม่"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleChangePassword();
+                  }
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowChangePasswordModal(false);
+                  setPasswordForm({
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: '',
+                  });
+                  setPasswordError('');
+                }}
+                disabled={changingPassword}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: '1px solid #333',
+                  background: '#262626',
+                  color: '#a1a1a1',
+                  cursor: changingPassword ? 'not-allowed' : 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s',
+                  opacity: changingPassword ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!changingPassword) {
+                    e.currentTarget.style.background = '#333';
+                    e.currentTarget.style.color = '#fff';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!changingPassword) {
+                    e.currentTarget.style.background = '#262626';
+                    e.currentTarget.style.color = '#a1a1a1';
+                  }
+                }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={changingPassword}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: changingPassword ? '#333' : '#10b981',
+                  color: '#fff',
+                  cursor: changingPassword ? 'not-allowed' : 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
+                  transition: 'background 0.2s',
+                  opacity: changingPassword ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!changingPassword) {
+                    e.currentTarget.style.background = '#059669';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!changingPassword) {
+                    e.currentTarget.style.background = '#10b981';
+                  }
+                }}
+              >
+                {changingPassword ? 'กำลังเปลี่ยนรหัสผ่าน...' : 'ยืนยัน'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast Notifications */}
