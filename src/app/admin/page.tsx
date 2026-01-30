@@ -66,6 +66,8 @@ export default function AdminPage() {
     child100Count: 0,
     drinkRefillCount: 0,
   });
+  const [useCustomTotal, setUseCustomTotal] = useState(false);
+  const [customTotal, setCustomTotal] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [menuLoading, setMenuLoading] = useState(false);
   const [tablesLoading, setTablesLoading] = useState(false);
@@ -653,7 +655,7 @@ export default function AdminPage() {
       const data = await response.json();
 
       if (data.success) {
-        const summary = data.summary;
+        const summary = data.summary || {};
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
@@ -664,23 +666,59 @@ export default function AdminPage() {
         const todayData = await todayResponse.json();
         const todaySummary = todayData.summary || summary;
 
+        // Ensure all values are numbers and handle null/undefined
+        const safeParse = (value: any) => {
+          const parsed = parseFloat(value);
+          return isNaN(parsed) ? 0 : parsed;
+        };
+
         setCashflowData({
-          todayRevenue: todaySummary.totalRevenue || 0,
-          totalRevenue: summary.totalRevenue || 0,
-          todayFoodRevenue: todaySummary.totalFoodRevenue || 0,
-          todayBuffetRevenue: todaySummary.totalBuffetRevenue || 0,
-          totalFoodRevenue: summary.totalFoodRevenue || 0,
-          totalBuffetRevenue: summary.totalBuffetRevenue || 0,
-          todayOrdersCount: todaySummary.totalOrdersCount || 0,
-          totalOrdersCount: summary.totalOrdersCount || 0,
-          todayTablesCount: todaySummary.uniqueTablesCount || 0,
+          todayRevenue: safeParse(todaySummary.totalRevenue),
+          totalRevenue: safeParse(summary.totalRevenue),
+          todayFoodRevenue: safeParse(todaySummary.totalFoodRevenue),
+          todayBuffetRevenue: safeParse(todaySummary.totalBuffetRevenue),
+          totalFoodRevenue: safeParse(summary.totalFoodRevenue),
+          totalBuffetRevenue: safeParse(summary.totalBuffetRevenue),
+          todayOrdersCount: parseInt(todaySummary.totalOrdersCount) || 0,
+          totalOrdersCount: parseInt(summary.totalOrdersCount) || 0,
+          todayTablesCount: parseInt(todaySummary.uniqueTablesCount) || 0,
         });
 
-        setDailyBreakdown(data.dailyBreakdown || []);
-        setTableBreakdown(data.tableBreakdown || []);
+        // Ensure breakdowns are arrays
+        setDailyBreakdown(Array.isArray(data.dailyBreakdown) ? data.dailyBreakdown : []);
+        setTableBreakdown(Array.isArray(data.tableBreakdown) ? data.tableBreakdown : []);
+      } else {
+        // Reset to defaults on error
+        setCashflowData({
+          todayRevenue: 0,
+          totalRevenue: 0,
+          todayFoodRevenue: 0,
+          todayBuffetRevenue: 0,
+          totalFoodRevenue: 0,
+          totalBuffetRevenue: 0,
+          todayOrdersCount: 0,
+          totalOrdersCount: 0,
+          todayTablesCount: 0,
+        });
+        setDailyBreakdown([]);
+        setTableBreakdown([]);
       }
     } catch (error) {
       console.error('Error fetching cashflow data:', error);
+      // Reset to defaults on error
+      setCashflowData({
+        todayRevenue: 0,
+        totalRevenue: 0,
+        todayFoodRevenue: 0,
+        todayBuffetRevenue: 0,
+        totalFoodRevenue: 0,
+        totalBuffetRevenue: 0,
+        todayOrdersCount: 0,
+        totalOrdersCount: 0,
+        todayTablesCount: 0,
+      });
+      setDailyBreakdown([]);
+      setTableBreakdown([]);
     } finally {
       setCashflowLoading(false);
     }
@@ -717,6 +755,8 @@ export default function AdminPage() {
           child100Count: 0,
           drinkRefillCount: 0,
         });
+        setUseCustomTotal(false);
+        setCustomTotal('');
         return;
       }
 
@@ -758,15 +798,41 @@ export default function AdminPage() {
   const saveTableBill = async () => {
     if (!tableToOpen) return;
 
-    if (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'แจ้งเตือน',
-        text: 'กรุณาเลือกจำนวนคนอย่างน้อย 1 คน',
-        confirmButtonColor: '#f97316',
-        confirmButtonText: 'ตกลง'
-      });
-      return;
+    // Parse custom total if enabled
+    let parsedCustomTotal: number | null = null;
+    if (useCustomTotal && customTotal.trim() !== '') {
+      const value = Number(customTotal.replace(/,/g, ''));
+      if (!isNaN(value) && value >= 0) {
+        parsedCustomTotal = value;
+      }
+    }
+
+    // Validate: if not using manual mode, require at least 1 person
+    if (!useCustomTotal || !parsedCustomTotal) {
+      if (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'แจ้งเตือน',
+          text: 'กรุณาเลือกจำนวนคนอย่างน้อย 1 คน หรือใส่ยอดเอง',
+          confirmButtonColor: '#f97316',
+          confirmButtonText: 'ตกลง'
+        });
+        return;
+      }
+    }
+
+    // Validate manual total if enabled
+    if (useCustomTotal) {
+      if (!customTotal.trim() || parsedCustomTotal === null) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'แจ้งเตือน',
+          text: 'กรุณาใส่ยอดเงินที่ถูกต้อง',
+          confirmButtonColor: '#f97316',
+          confirmButtonText: 'ตกลง'
+        });
+        return;
+      }
     }
 
     try {
@@ -781,6 +847,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           tableNumber: tableToOpen,
           ...billForm,
+          customTotalPrice: parsedCustomTotal,
         }),
       });
 
@@ -947,6 +1014,24 @@ export default function AdminPage() {
     const child100Total = billForm.child100Count * 0; // Free
     const drinkTotal = billForm.drinkRefillCount * 39;
     return adultTotal + child120Total + child100Total + drinkTotal;
+  };
+
+  // Helper function to calculate expected bill total from counts
+  const calculateExpectedBillTotal = (bill: any) => {
+    if (!bill) return 0;
+    const adultTotal = (bill.adultCount || 0) * (bill.adultPrice || 199);
+    const child120Total = (bill.child120Count || 0) * (bill.child120Price || 130);
+    const child100Total = (bill.child100Count || 0) * 0; // Free
+    const drinkTotal = (bill.drinkRefillCount || 0) * (bill.drinkRefillPrice || 39);
+    return adultTotal + child120Total + child100Total + drinkTotal;
+  };
+
+  // Helper function to check if bill uses manual total
+  const isManualTotal = (bill: any) => {
+    if (!bill || !bill.totalPrice) return false;
+    const expectedTotal = calculateExpectedBillTotal(bill);
+    // If difference is more than 0.01 (to account for floating point), it's likely manual
+    return Math.abs(bill.totalPrice - expectedTotal) > 0.01;
   };
 
   const getStatusColor = (status: Order['status']) => {
@@ -1968,103 +2053,145 @@ export default function AdminPage() {
                         </div>
 
                         {/* Table Bill Summary - Show only once */}
-                        {tableBill && (
-                          <div style={{
-                            marginBottom: '20px',
-                            padding: '16px',
-                            background: '#262626',
-                            borderRadius: '12px',
-                            border: '1px solid #333'
-                          }}>
+                        {tableBill && (() => {
+                          const expectedTotal = calculateExpectedBillTotal(tableBill);
+                          const isManual = isManualTotal(tableBill);
+                          const calculatedBreakdown = {
+                            adult: (tableBill.adultCount || 0) * (tableBill.adultPrice || 199),
+                            child120: (tableBill.child120Count || 0) * (tableBill.child120Price || 130),
+                            child100: 0,
+                            drink: (tableBill.drinkRefillCount || 0) * (tableBill.drinkRefillPrice || 39),
+                          };
+                          
+                          return (
                             <div style={{
-                              color: '#a855f7',
-                              fontSize: '1rem',
-                              fontWeight: 600,
-                              marginBottom: '12px'
+                              marginBottom: '20px',
+                              padding: '16px',
+                              background: '#262626',
+                              borderRadius: '12px',
+                              border: isManual ? '1px solid #f97316' : '1px solid #333'
                             }}>
-                              💰 บิลบุฟเฟ่ต์
-                            </div>
-                            <div style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(2, 1fr)',
-                              gap: '8px',
-                              fontSize: '0.85rem',
-                              color: '#a1a1a1',
-                              marginBottom: '12px'
-                            }}>
-                              {tableBill.adultCount > 0 && (
-                                <div>
-                                  👤 ผู้ใหญ่: {tableBill.adultCount} ท่าน × ฿{tableBill.adultPrice} = ฿{(tableBill.adultCount * tableBill.adultPrice).toLocaleString()}
-                                </div>
-                              )}
-                              {tableBill.child120Count > 0 && (
-                                <div>
-                                  👶 เด็ก 120cm: {tableBill.child120Count} คน × ฿{tableBill.child120Price} = ฿{(tableBill.child120Count * tableBill.child120Price).toLocaleString()}
-                                </div>
-                              )}
-                              {tableBill.child100Count > 0 && (
-                                <div>
-                                  🎁 เด็ก 100cm: {tableBill.child100Count} คน (ฟรี)
-                                </div>
-                              )}
-                              {tableBill.drinkRefillCount > 0 && (
-                                <div>
-                                  🥤 น้ำรีฟิล: {tableBill.drinkRefillCount} × ฿{tableBill.drinkRefillPrice} = ฿{(tableBill.drinkRefillCount * tableBill.drinkRefillPrice).toLocaleString()}
-                                </div>
-                              )}
-                            </div>
-                            <div style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              paddingTop: '12px',
-                              borderTop: '1px solid #333',
-                              marginBottom: '12px'
-                            }}>
-                              <span style={{
-                                color: '#fff',
-                                fontSize: '0.95rem',
-                                fontWeight: 600
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '12px'
                               }}>
-                                รวมบิลบุฟเฟ่ต์:
-                              </span>
-                              <span style={{
-                                color: '#a855f7',
-                                fontSize: '1.2rem',
-                                fontWeight: 700
+                                <div style={{
+                                  color: '#a855f7',
+                                  fontSize: '1rem',
+                                  fontWeight: 600
+                                }}>
+                                  💰 บิลบุฟเฟ่ต์
+                                </div>
+                                {isManual && (
+                                  <div style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '6px',
+                                    background: 'rgba(249, 115, 22, 0.2)',
+                                    border: '1px solid #f97316',
+                                    color: '#f97316',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600
+                                  }}>
+                                    ✏️ ใส่ยอดเอง
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(2, 1fr)',
+                                gap: '8px',
+                                fontSize: '0.85rem',
+                                color: '#a1a1a1',
+                                marginBottom: '12px'
                               }}>
-                                ฿{tableBill.totalPrice.toLocaleString()}
-                              </span>
+                                {tableBill.adultCount > 0 && (
+                                  <div>
+                                    👤 ผู้ใหญ่: {tableBill.adultCount} ท่าน × ฿{tableBill.adultPrice} = ฿{calculatedBreakdown.adult.toLocaleString()}
+                                  </div>
+                                )}
+                                {tableBill.child120Count > 0 && (
+                                  <div>
+                                    👶 เด็ก 120cm: {tableBill.child120Count} คน × ฿{tableBill.child120Price} = ฿{calculatedBreakdown.child120.toLocaleString()}
+                                  </div>
+                                )}
+                                {tableBill.child100Count > 0 && (
+                                  <div>
+                                    🎁 เด็ก 100cm: {tableBill.child100Count} คน (ฟรี)
+                                  </div>
+                                )}
+                                {tableBill.drinkRefillCount > 0 && (
+                                  <div>
+                                    🥤 น้ำรีฟิล: {tableBill.drinkRefillCount} × ฿{tableBill.drinkRefillPrice} = ฿{calculatedBreakdown.drink.toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
+                              {isManual && expectedTotal > 0 && (
+                                <div style={{
+                                  padding: '8px',
+                                  background: 'rgba(249, 115, 22, 0.1)',
+                                  borderRadius: '6px',
+                                  marginBottom: '12px',
+                                  fontSize: '0.8rem',
+                                  color: '#f97316'
+                                }}>
+                                  💡 คำนวณอัตโนมัติ: ฿{expectedTotal.toLocaleString()} → ใช้ยอด: ฿{tableBill.totalPrice.toLocaleString()}
+                                </div>
+                              )}
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                paddingTop: '12px',
+                                borderTop: '1px solid #333',
+                                marginBottom: '12px'
+                              }}>
+                                <span style={{
+                                  color: '#fff',
+                                  fontSize: '0.95rem',
+                                  fontWeight: 600
+                                }}>
+                                  รวมบิลบุฟเฟ่ต์:
+                                </span>
+                                <span style={{
+                                  color: isManual ? '#f97316' : '#a855f7',
+                                  fontSize: '1.2rem',
+                                  fontWeight: 700
+                                }}>
+                                  ฿{tableBill.totalPrice.toLocaleString()}
+                                </span>
+                              </div>
+                              {/* Check Bill Button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCheckBill(tableNum, tableGrandTotal, tableBill.totalPrice, tableTotalFood);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '12px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  background: '#10b981',
+                                  color: 'white',
+                                  cursor: 'pointer',
+                                  fontSize: '1rem',
+                                  fontWeight: 600,
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#059669';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = '#10b981';
+                                }}
+                              >
+                                ✅ เช็คบิล (฿{tableGrandTotal.toLocaleString()})
+                              </button>
                             </div>
-                            {/* Check Bill Button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCheckBill(tableNum, tableGrandTotal, tableBill.totalPrice, tableTotalFood);
-                              }}
-                              style={{
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                background: '#10b981',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontSize: '1rem',
-                                fontWeight: 600,
-                                transition: 'all 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = '#059669';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = '#10b981';
-                              }}
-                            >
-                              ✅ เช็คบิล (฿{tableGrandTotal.toLocaleString()})
-                            </button>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Orders for this table */}
                         {tableOrders.length > 0 ? (
@@ -3194,7 +3321,8 @@ export default function AdminPage() {
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                    gap: '12px'
+                    gap: '12px',
+                    marginBottom: '16px'
                   }}>
                     <div style={{
                       background: '#1a1a1a',
@@ -3216,6 +3344,15 @@ export default function AdminPage() {
                       }}>
                         ฿{cashflowData.todayFoodRevenue.toLocaleString()}
                       </div>
+                      {cashflowData.todayRevenue > 0 && (
+                        <div style={{
+                          color: '#737373',
+                          fontSize: '0.7rem',
+                          marginTop: '4px'
+                        }}>
+                          {((cashflowData.todayFoodRevenue / cashflowData.todayRevenue) * 100).toFixed(1)}% ของรายได้รวม
+                        </div>
+                      )}
                     </div>
                     <div style={{
                       background: '#1a1a1a',
@@ -3237,8 +3374,61 @@ export default function AdminPage() {
                       }}>
                         ฿{cashflowData.todayBuffetRevenue.toLocaleString()}
                       </div>
+                      {cashflowData.todayRevenue > 0 && (
+                        <div style={{
+                          color: '#737373',
+                          fontSize: '0.7rem',
+                          marginTop: '4px'
+                        }}>
+                          {((cashflowData.todayBuffetRevenue / cashflowData.todayRevenue) * 100).toFixed(1)}% ของรายได้รวม
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Summary Stats */}
+                  {cashflowData.todayTablesCount > 0 && (
+                    <div style={{
+                      background: '#1a1a1a',
+                      padding: '16px',
+                      borderRadius: '10px',
+                      border: '1px solid #2a2a2a',
+                      marginTop: '12px'
+                    }}>
+                      <div style={{
+                        color: '#737373',
+                        fontSize: '0.8rem',
+                        marginBottom: '8px'
+                      }}>
+                        📊 สถิติวันนี้
+                      </div>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '12px',
+                        fontSize: '0.85rem'
+                      }}>
+                        <div>
+                          <div style={{ color: '#a1a1a1', marginBottom: '4px' }}>โต๊ะที่เปิด</div>
+                          <div style={{ color: '#10b981', fontWeight: 600, fontSize: '1.1rem' }}>
+                            {cashflowData.todayTablesCount} โต๊ะ
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#a1a1a1', marginBottom: '4px' }}>คำสั่งซื้อ</div>
+                          <div style={{ color: '#a855f7', fontWeight: 600, fontSize: '1.1rem' }}>
+                            {cashflowData.todayOrdersCount} รายการ
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#a1a1a1', marginBottom: '4px' }}>ค่าเฉลี่ย/โต๊ะ</div>
+                          <div style={{ color: '#f97316', fontWeight: 600, fontSize: '1.1rem' }}>
+                            ฿{cashflowData.todayTablesCount > 0 ? Math.round(cashflowData.todayRevenue / cashflowData.todayTablesCount).toLocaleString() : '0'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Charts Section */}
@@ -4331,11 +4521,23 @@ export default function AdminPage() {
               border: '1px solid #10b981',
               marginBottom: '20px'
             }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
+              <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={useCustomTotal}
+                    onChange={(e) => setUseCustomTotal(e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span style={{ color: '#fff', fontSize: '0.9rem' }}>
+                    ใส่ยอดเอง (Manual)
+                  </span>
+                </div>
+                <span style={{ color: '#737373', fontSize: '0.8rem' }}>
+                  ระบบจะใช้ยอดนี้แทนการคำนวณอัตโนมัติ
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                 <span style={{
                   color: '#fff',
                   fontSize: '1rem',
@@ -4343,13 +4545,37 @@ export default function AdminPage() {
                 }}>
                   รวมทั้งหมด:
                 </span>
-                <span style={{
-                  color: '#10b981',
-                  fontSize: '1.5rem',
-                  fontWeight: 600
-                }}>
-                  ฿{calculateTotal().toLocaleString()}
-                </span>
+                {useCustomTotal ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#10b981', fontSize: '1rem', fontWeight: 500 }}>฿</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={customTotal}
+                      onChange={(e) => setCustomTotal(e.target.value)}
+                      placeholder={calculateTotal().toString()}
+                      style={{
+                        width: '130px',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid #3f3f46',
+                        background: '#18181b',
+                        color: '#e5e7eb',
+                        fontSize: '1rem',
+                        textAlign: 'right',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <span style={{
+                    color: '#10b981',
+                    fontSize: '1.5rem',
+                    fontWeight: 600
+                  }}>
+                    ฿{calculateTotal().toLocaleString()}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -4358,24 +4584,33 @@ export default function AdminPage() {
               display: 'flex',
               gap: '10px'
             }}>
-              <button
-                onClick={saveTableBill}
-                disabled={savingBill || (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) ? '#333' : '#10b981',
-                  color: (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) ? '#737373' : 'white',
-                  cursor: (billForm.adultCount === 0 && billForm.child120Count === 0 && billForm.child100Count === 0) ? 'not-allowed' : 'pointer',
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
-                  opacity: savingBill ? 0.6 : 1
-                }}
-              >
-                {savingBill ? 'กำลังบันทึก...' : '💾 บันทึกและเปิดโต๊ะ'}
-              </button>
+              {(() => {
+                const hasPeople = billForm.adultCount > 0 || billForm.child120Count > 0 || billForm.child100Count > 0;
+                const hasValidManualTotal = useCustomTotal && customTotal.trim() !== '' && !isNaN(Number(customTotal.replace(/,/g, ''))) && Number(customTotal.replace(/,/g, '')) >= 0;
+                const canSave = hasPeople || hasValidManualTotal;
+                const isDisabled = savingBill || !canSave;
+                
+                return (
+                  <button
+                    onClick={saveTableBill}
+                    disabled={isDisabled}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: isDisabled ? '#333' : '#10b981',
+                      color: isDisabled ? '#737373' : 'white',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      fontSize: '0.95rem',
+                      fontWeight: 500,
+                      opacity: savingBill ? 0.6 : 1
+                    }}
+                  >
+                    {savingBill ? 'กำลังบันทึก...' : '💾 บันทึกและเปิดโต๊ะ'}
+                  </button>
+                );
+              })()}
               <button
                 onClick={() => setTableToOpen(null)}
                 style={{

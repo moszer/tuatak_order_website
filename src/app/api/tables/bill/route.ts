@@ -4,7 +4,7 @@ import { connectToDatabase } from '@/lib/mysql';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tableNumber, adultCount, child120Count, child100Count, drinkRefillCount } = body;
+    const { tableNumber, adultCount, child120Count, child100Count, drinkRefillCount, customTotalPrice } = body;
 
     if (!tableNumber) {
       return NextResponse.json(
@@ -18,11 +18,17 @@ export async function POST(request: NextRequest) {
     const drinkRefillPrice = 39.00;
 
     // Calculate total price
-    const totalPrice = 
-      (adultCount * adultPrice) +
-      (child120Count * child120Price) +
-      (child100Count * 0) + // Free
-      (drinkRefillCount * drinkRefillPrice);
+    let totalPrice: number;
+    if (typeof customTotalPrice === 'number' && !Number.isNaN(customTotalPrice) && customTotalPrice >= 0) {
+      // Use manually entered total when provided
+      totalPrice = customTotalPrice;
+    } else {
+      totalPrice = 
+        (adultCount * adultPrice) +
+        (child120Count * child120Price) +
+        (child100Count * 0) + // Free
+        (drinkRefillCount * drinkRefillPrice);
+    }
 
     const pool = await connectToDatabase();
 
