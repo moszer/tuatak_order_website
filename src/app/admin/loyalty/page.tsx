@@ -36,6 +36,8 @@ export default function AdminLoyaltyPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loadingQr, setLoadingQr] = useState(true);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Generate form
   const [genLabel, setGenLabel] = useState('');
@@ -101,6 +103,22 @@ export default function AdminLoyaltyPage() {
       body: JSON.stringify({ is_active: !qr.is_active }),
     });
     await loadQrCodes();
+  };
+
+  const deleteMember = async (m: Member) => {
+    if (!confirm(`ลบสมาชิก "${m.name}" (${m.phone}) ?\n\nประวัติแต้มทั้งหมดจะถูกลบด้วย`)) return;
+    setDeletingId(m.id);
+    try {
+      const res = await fetch(`/api/members/${m.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMembers(prev => prev.filter(x => x.id !== m.id));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'เกิดข้อผิดพลาด');
+      }
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const deleteQr = async (qr: QRCodeItem) => {
@@ -280,42 +298,80 @@ export default function AdminLoyaltyPage() {
       {/* Members Tab */}
       {activeTab === 'members' && (
         <div style={{ animation: 'fadeUp 0.3s ease' }}>
+          {/* Search bar */}
+          {!loadingMembers && members.length > 0 && (
+            <div style={{ marginBottom: '16px' }}>
+              <input
+                className="ly-admin-input"
+                type="text"
+                placeholder="ค้นหาชื่อ หรือ เบอร์โทร..."
+                value={memberSearch}
+                onChange={e => setMemberSearch(e.target.value)}
+                style={{ maxWidth: '320px' }}
+              />
+            </div>
+          )}
+
           {loadingMembers ? (
             <div style={{ textAlign: 'center', padding: '60px', color: '#475569' }}>กำลังโหลด...</div>
           ) : members.length === 0 ? (
             <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#475569' }}>
               ยังไม่มีสมาชิก
             </div>
-          ) : (
-            <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '12px', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #1a2332' }}>
-                    {['ชื่อ', 'เบอร์โทร', 'แต้ม', 'ระดับ', 'สมัครวันที่'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#475569', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map((m, i) => (
-                    <tr key={m.id} style={{ borderBottom: i < members.length - 1 ? '1px solid #0d1117' : 'none', transition: 'background 0.1s' }}>
-                      <td style={{ padding: '13px 16px', color: '#f1f5f9', fontWeight: 500 }}>{m.name}</td>
-                      <td style={{ padding: '13px 16px', color: '#64748b' }}>{m.phone}</td>
-                      <td style={{ padding: '13px 16px', color: '#fbbf24', fontWeight: 700 }}>{m.points.toLocaleString()}</td>
-                      <td style={{ padding: '13px 16px' }}>
-                        <span style={{ color: TIER_COLORS[m.tier], fontSize: '0.82rem', fontWeight: 600 }}>
-                          {TIER_EMOJI[m.tier]} {m.tier.charAt(0).toUpperCase() + m.tier.slice(1)}
-                        </span>
-                      </td>
-                      <td style={{ padding: '13px 16px', color: '#475569', fontSize: '0.8rem' }}>
-                        {new Date(m.createdAt).toLocaleDateString('th-TH')}
-                      </td>
+          ) : (() => {
+            const filtered = members.filter(m =>
+              m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+              m.phone.includes(memberSearch)
+            );
+            return (
+              <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '12px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #1a2332' }}>
+                      {['ชื่อ', 'เบอร์โทร', 'แต้ม', 'ระดับ', 'สมัครวันที่', ''].map(h => (
+                        <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#475569', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#475569' }}>ไม่พบสมาชิก</td>
+                      </tr>
+                    ) : filtered.map((m, i) => (
+                      <tr key={m.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #0d1117' : 'none' }}>
+                        <td style={{ padding: '13px 16px', color: '#f1f5f9', fontWeight: 500 }}>{m.name}</td>
+                        <td style={{ padding: '13px 16px', color: '#64748b' }}>{m.phone}</td>
+                        <td style={{ padding: '13px 16px', color: '#fbbf24', fontWeight: 700 }}>{m.points.toLocaleString()}</td>
+                        <td style={{ padding: '13px 16px' }}>
+                          <span style={{ color: TIER_COLORS[m.tier], fontSize: '0.82rem', fontWeight: 600 }}>
+                            {TIER_EMOJI[m.tier]} {m.tier.charAt(0).toUpperCase() + m.tier.slice(1)}
+                          </span>
+                        </td>
+                        <td style={{ padding: '13px 16px', color: '#475569', fontSize: '0.8rem' }}>
+                          {new Date(m.createdAt).toLocaleDateString('th-TH')}
+                        </td>
+                        <td style={{ padding: '13px 16px' }}>
+                          <button
+                            onClick={() => deleteMember(m)}
+                            disabled={deletingId === m.id}
+                            style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: deletingId === m.id ? '#475569' : '#f87171', fontSize: '0.78rem', cursor: deletingId === m.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                          >
+                            {deletingId === m.id ? '...' : 'ลบ'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {memberSearch && (
+                  <div style={{ padding: '10px 16px', borderTop: '1px solid #1a2332', color: '#475569', fontSize: '0.78rem' }}>
+                    แสดง {filtered.length} จาก {members.length} สมาชิก
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
