@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     const member = members[0];
 
     const [history] = await pool.query(
-      'SELECT * FROM member_points_history WHERE memberId = ? ORDER BY createdAt DESC LIMIT 20',
+      'SELECT id, member_id as memberId, points, type, description, createdAt FROM points_history WHERE member_id = ? ORDER BY createdAt DESC LIMIT 20',
       [member.id]
     ) as any[];
 

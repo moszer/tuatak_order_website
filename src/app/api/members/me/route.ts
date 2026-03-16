@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest) {
   const pool = await connectToDatabase();
 
   const [rows] = await pool.query(
-    'SELECT id, phone, name, email, points, tier, createdAt FROM members WHERE id = ?',
+    'SELECT id, phone, name, email, points, tier, memberNumber, validTill, lineUid, linePictureUrl, totalVisits, createdAt FROM members WHERE id = ?',
     [member.memberId]
   ) as any;
 

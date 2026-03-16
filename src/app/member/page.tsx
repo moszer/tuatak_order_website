@@ -55,7 +55,7 @@ function getTierLabel(tier: string): string {
 function getNextTierInfo(points: number): { nextTier: string; threshold: number; prevThreshold: number } {
   if (points < 1000) return { nextTier: 'SILVER', threshold: 1000, prevThreshold: 0 };
   if (points < 5000) return { nextTier: 'GOLD', threshold: 5000, prevThreshold: 1000 };
-  return { nextTier: 'GOLD', threshold: 5000, prevThreshold: 1000 };
+  return { nextTier: 'MAX', threshold: 5000, prevThreshold: 5000 };
 }
 
 function getTierFromPoints(points: number): string {
@@ -1197,30 +1197,24 @@ export default function MemberPage() {
       .catch(() => setHydrated(true));
   }, []);
 
-  // Fetch fresh member data + history from API when member is set
-  useEffect(() => {
-    if (!member) return;
-    const qs = member.phone
-      ? `phone=${encodeURIComponent(member.phone)}`
-      : `lineUid=${encodeURIComponent(member.lineUid || '')}`;
-    fetch(`/api/member?${qs}`)
-      .then((r) => r.json())
+  function handleLogin(m: Member) {
+    setMember(m);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(m));
+    // Fetch full profile (includes memberNumber, validTill, history) after login
+    fetch('/api/members/me')
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data.member) {
+        if (data?.member) {
           setMember(data.member);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data.member));
           setHistory(data.history || []);
         }
       })
-      .catch(() => {/* ignore */});
-  }, [member?.phone, member?.lineUid]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleLogin(m: Member) {
-    setMember(m);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(m));
+      .catch(() => {});
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await fetch('/api/members/logout', { method: 'POST' }).catch(() => {});
     localStorage.removeItem(STORAGE_KEY);
     setMember(null);
     setActiveTab('home');
@@ -1228,20 +1222,16 @@ export default function MemberPage() {
   }
 
   function handleRefresh() {
-    if (!member) return;
-    const qs = member.phone
-      ? `phone=${encodeURIComponent(member.phone)}`
-      : `lineUid=${encodeURIComponent((member as any).lineUid || '')}`;
-    fetch(`/api/member?${qs}`)
-      .then((r) => r.json())
+    fetch('/api/members/me')
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data.member) {
+        if (data?.member) {
           setMember(data.member);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data.member));
           setHistory(data.history || []);
         }
       })
-      .catch(() => {/* ignore */});
+      .catch(() => {});
   }
 
   if (!hydrated) return null;

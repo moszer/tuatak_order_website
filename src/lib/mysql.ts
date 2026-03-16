@@ -175,6 +175,18 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
       ALTER TABLE members MODIFY COLUMN tier ENUM('bronze', 'silver', 'gold', 'member', 'platinum') NOT NULL DEFAULT 'bronze'
     `).catch(() => { /* ignore if already correct */ });
 
+    // Add optional columns for extended member profile (idempotent)
+    const memberAlters = [
+      `ALTER TABLE members ADD COLUMN memberNumber VARCHAR(30) NULL`,
+      `ALTER TABLE members ADD COLUMN validTill DATE NULL`,
+      `ALTER TABLE members ADD COLUMN lineUid VARCHAR(100) NULL`,
+      `ALTER TABLE members ADD COLUMN linePictureUrl VARCHAR(500) NULL`,
+      `ALTER TABLE members ADD COLUMN totalVisits INT NOT NULL DEFAULT 0`,
+    ];
+    for (const sql of memberAlters) {
+      await connection.query(sql).catch(() => { /* column already exists */ });
+    }
+
     // Create loyalty_qr_codes table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS loyalty_qr_codes (
