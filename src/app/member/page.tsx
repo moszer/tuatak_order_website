@@ -1170,7 +1170,7 @@ export default function MemberPage() {
   const [hydrated, setHydrated] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
 
-  // Load from localStorage or cookie (set by LINE callback) after hydration
+  // Load from localStorage or JWT cookie (set by LINE callback / phone login) after hydration
   useEffect(() => {
     // Try localStorage first
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -1183,20 +1183,18 @@ export default function MemberPage() {
         localStorage.removeItem(STORAGE_KEY);
       }
     }
-    // Try cookie set by LINE callback
-    const match = document.cookie.match(/(?:^|;\s*)restaurant_member=([^;]+)/);
-    if (match) {
-      try {
-        const m = JSON.parse(decodeURIComponent(match[1]));
-        setMember(m);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(m));
-        // Clear the cookie now that we've stored in localStorage
-        document.cookie = 'restaurant_member=; Max-Age=0; path=/';
-      } catch {
-        // ignore
-      }
-    }
-    setHydrated(true);
+    // Try fetching from API (covers LINE login which sets httpOnly member_token JWT)
+    fetch('/api/members/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.member) {
+          setMember(data.member);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.member));
+          setHistory(data.history || []);
+        }
+        setHydrated(true);
+      })
+      .catch(() => setHydrated(true));
   }, []);
 
   // Fetch fresh member data + history from API when member is set
