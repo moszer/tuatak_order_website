@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mysql';
+import { signMemberToken, setMemberCookieHeader } from '@/lib/memberJwt';
 
 function generateMemberNumber(): string {
   const now = new Date();
@@ -78,21 +79,17 @@ export async function GET(request: NextRequest) {
     ) as any;
 
     if (members && members.length > 0) {
-      // Returning LINE user — update picture and log them in via cookie
+      // Returning LINE user — update picture and log them in via JWT cookie
       const member = members[0];
       if (linePic) {
         await pool.execute(
           'UPDATE members SET linePictureUrl = ?, updatedAt = NOW() WHERE id = ?',
           [linePic, member.id]
         );
-        member.linePictureUrl = linePic;
       }
+      const token = signMemberToken({ memberId: member.id, phone: member.phone, name: member.name });
       const response = NextResponse.redirect(new URL('/member', request.url));
-      response.cookies.set('restaurant_member', JSON.stringify(member), {
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-        httpOnly: false, // readable by client JS
-      });
+      response.headers.set('Set-Cookie', setMemberCookieHeader(token));
       return response;
     }
 
