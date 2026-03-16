@@ -103,7 +103,7 @@ export default function Header() {
     };
 
     // Don't show header on admin page or login page
-    if (pathname === '/admin' || pathname === '/admin/login') {
+    if (pathname === '/admin' || pathname === '/login' || pathname === '/register') {
         return null;
     }
 
