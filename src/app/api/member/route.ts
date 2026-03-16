@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mysql';
+import { signMemberToken, setMemberCookieHeader } from '@/lib/memberJwt';
 
 function generateMemberNumber(): string {
   const now = new Date();
@@ -54,7 +55,10 @@ export async function POST(request: NextRequest) {
         member.lineUid = lineUid;
         member.linePictureUrl = linePictureUrl || member.linePictureUrl;
       }
-      return NextResponse.json({ member });
+      const token = signMemberToken({ memberId: member.id, phone: member.phone || '', name: member.name });
+      const res = NextResponse.json({ member });
+      res.headers.set('Set-Cookie', setMemberCookieHeader(token));
+      return res;
     }
 
     // Create new member
@@ -74,7 +78,11 @@ export async function POST(request: NextRequest) {
       [lookupValue]
     ) as any[];
 
-    return NextResponse.json({ member: newMember[0] }, { status: 201 });
+    const created = newMember[0];
+    const token = signMemberToken({ memberId: created.id, phone: created.phone || '', name: created.name });
+    const res = NextResponse.json({ member: created }, { status: 201 });
+    res.headers.set('Set-Cookie', setMemberCookieHeader(token));
+    return res;
   } catch (error) {
     console.error('POST /api/member error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
