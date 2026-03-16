@@ -145,6 +145,84 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Add LINE login columns if they don't exist (TiDB supports IF NOT EXISTS)
+    await connection.query(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS line_user_id VARCHAR(100) NULL UNIQUE,
+        ADD COLUMN IF NOT EXISTS display_name VARCHAR(255) NULL,
+        ADD COLUMN IF NOT EXISTS picture_url VARCHAR(500) NULL
+    `).catch(() => {
+      // Ignore if columns already exist (fallback for MySQL without IF NOT EXISTS support)
+    });
+
+    // Create members table for loyalty program
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS members (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        phone VARCHAR(20) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(255) NULL,
+        points INT NOT NULL DEFAULT 0,
+        tier ENUM('bronze', 'silver', 'gold', 'member', 'platinum') NOT NULL DEFAULT 'bronze',
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_phone (phone)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Ensure tier column supports all required values (in case table already existed with old ENUM)
+    await connection.query(`
+      ALTER TABLE members MODIFY COLUMN tier ENUM('bronze', 'silver', 'gold', 'member', 'platinum') NOT NULL DEFAULT 'bronze'
+    `).catch(() => { /* ignore if already correct */ });
+
+    // Create loyalty_qr_codes table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS loyalty_qr_codes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(100) UNIQUE NOT NULL,
+        points_value INT NOT NULL DEFAULT 10,
+        label VARCHAR(255) NULL,
+        expires_at DATETIME NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        max_uses INT NOT NULL DEFAULT 0,
+        used_count INT NOT NULL DEFAULT 0,
+        created_by INT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_code (code),
+        INDEX idx_expires_at (expires_at),
+        INDEX idx_is_active (is_active)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Create qr_scans table (tracks who scanned what — prevents duplicate)
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS qr_scans (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        qr_code_id INT NOT NULL,
+        member_id INT NOT NULL,
+        points_earned INT NOT NULL,
+        scanned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_qr_code_id (qr_code_id),
+        INDEX idx_member_id (member_id),
+        UNIQUE KEY unique_member_qr (member_id, qr_code_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Create points_history table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS points_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        member_id INT NOT NULL,
+        points INT NOT NULL,
+        type ENUM('earn', 'redeem') NOT NULL,
+        description VARCHAR(255),
+        qr_code_id INT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_member_id (member_id),
+        INDEX idx_createdAt (createdAt)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     // Insert default admin user if users table is empty (password: admin123)
     const [existingUsers] = await connection.query('SELECT COUNT(*) as count FROM users') as any;
     if (existingUsers[0].count === 0) {

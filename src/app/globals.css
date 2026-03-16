@@ -204,20 +204,21 @@ body {
 }
 
 /* ===== SIDEBAR MENU LAYOUT ===== */
+/* --top-offset is set inline per page (header + indicator bar height) */
 .menu-section {
     display: flex;
     min-height: calc(100vh - 80px);
-    margin-top: 80px;
+    margin-top: 80px; /* overridden inline */
     background-color: var(--color-background);
 }
 
 /* Sidebar */
 .sidebar {
     width: 80px;
-    height: calc(100vh - 80px);
+    height: calc(100vh - 80px); /* overridden inline */
     background: linear-gradient(180deg, #3D352E 0%, #2D2520 100%);
     position: fixed;
-    top: 80px;
+    top: 80px; /* overridden inline */
     left: 0;
     flex-shrink: 0;
     padding: 0.5rem 0;

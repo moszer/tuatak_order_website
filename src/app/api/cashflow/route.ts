@@ -10,42 +10,37 @@ export async function GET(request: NextRequest) {
 
     const pool = await connectToDatabase();
 
-    // Calculate date range based on period
-    let dateFilter = '';
-    const params: any[] = [];
-
-    if (startDate && endDate) {
-      dateFilter = 'WHERE DATE(paidAt) BETWEEN ? AND ?';
-      params.push(startDate, endDate);
-    } else {
+    // Build date filter and params — each query gets its own params array
+    const buildFilter = (): { filter: string; params: any[] } => {
+      if (startDate && endDate) {
+        return { filter: 'WHERE DATE(paidAt) BETWEEN ? AND ?', params: [startDate, endDate] };
+      }
       const now = new Date();
       switch (period) {
-        case 'today':
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          dateFilter = 'WHERE DATE(paidAt) = ?';
-          params.push(today.toISOString().split('T')[0]);
-          break;
-        case 'week':
-          const weekAgo = new Date(now);
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          dateFilter = 'WHERE DATE(paidAt) >= ?';
-          params.push(weekAgo.toISOString().split('T')[0]);
-          break;
-        case 'month':
-          const monthAgo = new Date(now);
-          monthAgo.setMonth(monthAgo.getMonth() - 1);
-          dateFilter = 'WHERE DATE(paidAt) >= ?';
-          params.push(monthAgo.toISOString().split('T')[0]);
-          break;
-        case 'all':
-          dateFilter = '';
-          break;
+        case 'today': {
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          return { filter: 'WHERE DATE(paidAt) = ?', params: [d.toISOString().split('T')[0]] };
+        }
+        case 'week': {
+          const d = new Date(now);
+          d.setDate(d.getDate() - 7);
+          return { filter: 'WHERE DATE(paidAt) >= ?', params: [d.toISOString().split('T')[0]] };
+        }
+        case 'month': {
+          const d = new Date(now);
+          d.setMonth(d.getMonth() - 1);
+          return { filter: 'WHERE DATE(paidAt) >= ?', params: [d.toISOString().split('T')[0]] };
+        }
+        default:
+          return { filter: '', params: [] };
       }
-    }
+    };
 
-    // Get payments summary
+    const { filter: dateFilter, params: filterParams } = buildFilter();
+
+    // Get payments summary — own params copy
     const [payments] = await pool.execute(
-      `SELECT 
+      `SELECT
         SUM(foodRevenue) as totalFoodRevenue,
         SUM(buffetRevenue) as totalBuffetRevenue,
         SUM(totalRevenue) as totalRevenue,
@@ -53,54 +48,28 @@ export async function GET(request: NextRequest) {
         COUNT(*) as paymentsCount,
         COUNT(DISTINCT tableNumber) as uniqueTablesCount
        FROM payments ${dateFilter}`,
-      params
+      [...filterParams]
     ) as any;
 
-    // Get daily breakdown for the period
-    let dailyBreakdownQuery = '';
-    if (startDate && endDate) {
-      dailyBreakdownQuery = `WHERE DATE(paidAt) BETWEEN ? AND ?`;
-    } else {
-      const now = new Date();
-      switch (period) {
-        case 'today':
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          dailyBreakdownQuery = `WHERE DATE(paidAt) = ?`;
-          params.push(today.toISOString().split('T')[0]);
-          break;
-        case 'week':
-          const weekAgo = new Date(now);
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          dailyBreakdownQuery = `WHERE DATE(paidAt) >= ?`;
-          params.push(weekAgo.toISOString().split('T')[0]);
-          break;
-        case 'month':
-          const monthAgo = new Date(now);
-          monthAgo.setMonth(monthAgo.getMonth() - 1);
-          dailyBreakdownQuery = `WHERE DATE(paidAt) >= ?`;
-          params.push(monthAgo.toISOString().split('T')[0]);
-          break;
-      }
-    }
-
+    // Get daily breakdown — own params copy
     const [dailyBreakdown] = await pool.execute(
-      `SELECT 
+      `SELECT
         DATE(paidAt) as date,
         SUM(foodRevenue) as foodRevenue,
         SUM(buffetRevenue) as buffetRevenue,
         SUM(totalRevenue) as totalRevenue,
         SUM(ordersCount) as ordersCount,
         COUNT(*) as paymentsCount
-       FROM payments ${dailyBreakdownQuery || ''}
+       FROM payments ${dateFilter}
        GROUP BY DATE(paidAt)
        ORDER BY date DESC
        LIMIT 30`,
-      dailyBreakdownQuery ? params : []
+      [...filterParams]
     ) as any;
 
-    // Get table breakdown
+    // Get table breakdown — own params copy
     const [tableBreakdown] = await pool.execute(
-      `SELECT 
+      `SELECT
         tableNumber,
         SUM(foodRevenue) as foodRevenue,
         SUM(buffetRevenue) as buffetRevenue,
@@ -111,7 +80,17 @@ export async function GET(request: NextRequest) {
        GROUP BY tableNumber
        ORDER BY totalRevenue DESC
        LIMIT 20`,
-      params
+      [...filterParams]
+    ) as any;
+
+    // Get individual payment records — own params copy
+    const [individualPayments] = await pool.execute(
+      `SELECT
+        id, tableNumber, foodRevenue, buffetRevenue, totalRevenue,
+        ordersCount, paymentMethod, notes, paidAt
+       FROM payments ${dateFilter}
+       ORDER BY paidAt DESC`,
+      [...filterParams]
     ) as any;
 
     return NextResponse.json({
@@ -139,6 +118,17 @@ export async function GET(request: NextRequest) {
         totalRevenue: parseFloat(row.totalRevenue || 0),
         ordersCount: parseInt(row.ordersCount || 0),
         paymentsCount: parseInt(row.paymentsCount || 0),
+      })),
+      individualPayments: individualPayments.map((row: any) => ({
+        id: row.id,
+        tableNumber: row.tableNumber,
+        foodRevenue: parseFloat(row.foodRevenue || 0),
+        buffetRevenue: parseFloat(row.buffetRevenue || 0),
+        totalRevenue: parseFloat(row.totalRevenue || 0),
+        ordersCount: parseInt(row.ordersCount || 0),
+        paymentMethod: row.paymentMethod || 'cash',
+        notes: row.notes || '',
+        paidAt: row.paidAt,
       })),
     });
   } catch (error) {

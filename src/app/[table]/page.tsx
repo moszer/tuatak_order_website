@@ -126,273 +126,172 @@ export default function TablePage() {
         return items;
     }, [activeCategory, searchQuery, menuItems]);
 
+    // Heights for layout calculation
+    const HEADER_H = 80;
+    const BAR_H = 40;
+    const TOTAL_TOP = HEADER_H + BAR_H; // 120px
+
     return (
         <>
-            {/* Table Not Ready Popup */}
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes tbl-pulse { 0%,100% { transform: scale(1); opacity:1; } 50% { transform: scale(1.08); opacity:0.85; } }
+                @keyframes tbl-spin { to { transform: rotate(360deg); } }
+                @keyframes tbl-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+            ` }} />
+
+            {/* Table Not Ready */}
             {showNotReadyPopup && (
                 <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1001,
-                    padding: '20px'
+                    position: 'fixed', inset: 0,
+                    background: 'rgba(0,0,0,0.85)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 1001, padding: '20px',
                 }}>
                     <div style={{
-                        background: 'linear-gradient(135deg, #2D2520 0%, #3D352E 100%)',
-                        borderRadius: '20px',
-                        padding: '40px',
-                        maxWidth: '500px',
-                        width: '100%',
+                        background: '#2D2520',
+                        borderRadius: '20px', padding: '40px 32px',
+                        maxWidth: '420px', width: '100%',
                         textAlign: 'center',
-                        border: '2px solid rgba(255, 107, 74, 0.3)',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+                        border: '1px solid rgba(255,107,74,0.25)',
+                        boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
+                        animation: 'tbl-fadein 0.3s ease',
                     }}>
-                        <div style={{
-                            fontSize: '5rem',
-                            marginBottom: '24px',
-                            animation: 'pulse 2s ease-in-out infinite'
-                        }}>
-                            ⏳
+                        <div style={{ fontSize: '3.5rem', marginBottom: '20px', animation: 'tbl-pulse 2s ease-in-out infinite' }}>⏳</div>
+                        <div style={{ display: 'inline-block', background: 'rgba(255,107,74,0.12)', border: '1px solid rgba(255,107,74,0.3)', borderRadius: '8px', padding: '4px 14px', marginBottom: '16px' }}>
+                            <span style={{ color: '#FF6B4A', fontSize: '0.85rem', fontWeight: 600 }}>โต๊ะ {tableNumber}</span>
                         </div>
-                        <h1 style={{
-                            color: 'white',
-                            fontSize: '2rem',
-                            fontWeight: 800,
-                            marginBottom: '16px'
-                        }}>
-                            กำลังเตรียมโต๊ะ
-                        </h1>
-                        <h2 style={{
-                            color: '#FF6B4A',
-                            fontSize: '1.5rem',
-                            fontWeight: 700,
-                            marginBottom: '24px'
-                        }}>
-                            โต๊ะที่ {tableNumber}
-                        </h2>
-                        <p style={{
-                            color: '#E0E0E0',
-                            fontSize: '1.1rem',
-                            marginBottom: '32px',
-                            lineHeight: '1.6'
-                        }}>
-                            โต๊ะนี้ยังไม่พร้อมใช้งาน<br />
-                            กรุณารอให้เจ้าหน้าที่เปิดใช้งานก่อน
+                        <h1 style={{ color: 'white', fontSize: '1.6rem', fontWeight: 800, marginBottom: '10px' }}>กำลังเตรียมโต๊ะ</h1>
+                        <p style={{ color: '#b5a99d', fontSize: '0.95rem', marginBottom: '28px', lineHeight: 1.7 }}>
+                            โต๊ะนี้ยังไม่พร้อมใช้งาน<br />กรุณารอให้พนักงานเปิดโต๊ะก่อน
                         </p>
                         <button
-                            onClick={() => {
-                                // Refresh page to check status again
-                                window.location.reload();
-                            }}
+                            onClick={checkTableStatus}
                             style={{
-                                padding: '16px 32px',
-                                borderRadius: '12px',
-                                border: 'none',
-                                background: '#FF6B4A',
-                                color: 'white',
-                                fontSize: '1.1rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease',
-                                boxShadow: '0 4px 20px rgba(255, 107, 74, 0.4)'
+                                padding: '13px 32px', borderRadius: '10px', border: 'none',
+                                background: '#FF6B4A', color: 'white',
+                                fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer',
+                                boxShadow: '0 4px 16px rgba(255,107,74,0.4)', transition: 'all 0.2s',
                             }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.transform = 'scale(1.05)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.transform = 'scale(1)';
-                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#E55A3A'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#FF6B4A'; e.currentTarget.style.transform = 'none'; }}
                         >
-                            🔄 ตรวจสอบอีกครั้ง
+                            ตรวจสอบอีกครั้ง
                         </button>
                     </div>
-                    <style dangerouslySetInnerHTML={{
-                        __html: `
-                            @keyframes pulse {
-                                0%, 100% { transform: scale(1); }
-                                50% { transform: scale(1.1); }
-                            }
-                        `
-                    }} />
                 </div>
             )}
 
             {/* Welcome Screen */}
             {showWelcome && tableReady && (
                 <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'linear-gradient(135deg, #2D2520 0%, #3D352E 100%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1000,
-                    padding: '40px 20px'
+                    position: 'fixed', inset: 0,
+                    background: 'linear-gradient(160deg, #2D2520 0%, #3D352E 60%, #2D2520 100%)',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center',
+                    zIndex: 1000, padding: '40px 20px',
+                    animation: 'tbl-fadein 0.4s ease',
                 }}>
-                    <div style={{
-                        textAlign: 'center',
-                        maxWidth: '500px'
-                    }}>
-                        <div style={{
-                            fontSize: '4rem',
-                            marginBottom: '24px',
-                            animation: 'pulse 2s ease-in-out infinite'
-                        }}>
-                            🍜
+                    <div style={{ textAlign: 'center', maxWidth: '440px' }}>
+                        <div style={{ fontSize: '4rem', marginBottom: '24px', animation: 'tbl-pulse 2s ease-in-out infinite' }}>🍜</div>
+                        <h1 style={{ color: 'white', fontSize: '2.2rem', fontWeight: 800, marginBottom: '8px', letterSpacing: '-0.02em' }}>ยินดีต้อนรับ!</h1>
+                        <div style={{ display: 'inline-block', background: 'rgba(255,107,74,0.15)', border: '1px solid rgba(255,107,74,0.35)', borderRadius: '10px', padding: '6px 20px', marginBottom: '20px' }}>
+                            <span style={{ color: '#FF6B4A', fontSize: '1.2rem', fontWeight: 700 }}>โต๊ะ {tableNumber}</span>
                         </div>
-                        <h1 style={{
-                            color: 'white',
-                            fontSize: '2.5rem',
-                            fontWeight: 800,
-                            marginBottom: '16px'
-                        }}>
-                            ยินดีต้อนรับ!
-                        </h1>
-                        <h2 style={{
-                            color: '#FF6B4A',
-                            fontSize: '1.8rem',
-                            fontWeight: 700,
-                            marginBottom: '24px'
-                        }}>
-                            โต๊ะที่ {tableNumber}
-                        </h2>
-                        <p style={{
-                            color: '#E0E0E0',
-                            fontSize: '1.2rem',
-                            marginBottom: '32px',
-                            lineHeight: '1.6'
-                        }}>
-                            เริ่มต้นการสั่งอาหารของคุณ<br />
-                            เลือกเมนูที่คุณต้องการได้เลย
+                        <p style={{ color: '#b5a99d', fontSize: '1rem', marginBottom: '32px', lineHeight: 1.7 }}>
+                            เลือกเมนูที่ต้องการได้เลย<br />แล้วหยิบใส่ตะกร้าเพื่อสั่งอาหาร
                         </p>
                         <button
                             onClick={() => setShowWelcome(false)}
                             style={{
-                                padding: '16px 32px',
-                                borderRadius: '12px',
-                                border: 'none',
-                                background: '#FF6B4A',
-                                color: 'white',
-                                fontSize: '1.1rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease',
-                                boxShadow: '0 4px 20px rgba(255, 107, 74, 0.4)'
+                                padding: '14px 40px', borderRadius: '12px', border: 'none',
+                                background: '#FF6B4A', color: 'white',
+                                fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
+                                boxShadow: '0 4px 20px rgba(255,107,74,0.45)', transition: 'all 0.2s',
                             }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.transform = 'scale(1.05)';
-                                e.currentTarget.style.boxShadow = '0 6px 25px rgba(255, 107, 74, 0.6)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.transform = 'scale(1)';
-                                e.currentTarget.style.boxShadow = '0 4px 20px rgba(255, 107, 74, 0.4)';
-                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = '#E55A3A'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(255,107,74,0.5)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = '#FF6B4A'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,107,74,0.45)'; }}
                         >
                             เริ่มสั่งอาหาร →
                         </button>
                     </div>
-                    <style dangerouslySetInnerHTML={{
-                        __html: `
-                            @keyframes pulse {
-                                0%, 100% { transform: scale(1); }
-                                50% { transform: scale(1.1); }
-                            }
-                        `
-                    }} />
                 </div>
             )}
 
-            {/* Table indicator bar - Only show if table is ready */}
+            {/* Table indicator bar — full width, below header */}
             {tableReady && !showNotReadyPopup && (
-            <div style={{
-                position: 'fixed',
-                top: '80px',
-                left: '80px',
-                right: 0,
-                background: 'linear-gradient(135deg, #FF6B4A 0%, #E55A3A 100%)',
-                color: 'white',
-                padding: '8px 16px',
-                zIndex: 45,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                fontSize: '0.85rem',
-                fontWeight: 600
-            }}>
-                <span>🍜</span>
-                <span>โต๊ะที่ {tableNumber}</span>
-                <span>|</span>
-                <span>Table {tableNumber}</span>
-            </div>
+                <div style={{
+                    position: 'fixed',
+                    top: `${HEADER_H}px`, left: 0, right: 0,
+                    height: `${BAR_H}px`,
+                    background: 'linear-gradient(90deg, #3D352E 0%, #4D443C 100%)',
+                    borderBottom: '1px solid rgba(255,107,74,0.2)',
+                    color: 'white',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: '10px', zIndex: 45,
+                    fontSize: '0.82rem', fontWeight: 600,
+                }}>
+                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#4CAF50', boxShadow: '0 0 6px #4CAF50' }} />
+                    <span style={{ color: '#FF6B4A' }}>โต๊ะ {tableNumber}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.25)' }}>|</span>
+                    <span style={{ color: '#b5a99d' }}>Table {tableNumber}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.25)' }}>|</span>
+                    <span style={{ color: '#b5a99d', fontWeight: 400 }}>เลือกหมวดหมู่จากแถบด้านซ้าย</span>
+                </div>
             )}
 
-            {/* Menu Section with Sidebar Filter - Only show if table is ready */}
+            {/* Menu Section — Only show if table is ready */}
             {tableReady && !showNotReadyPopup && (
-            <ImageKitProvider urlEndpoint="https://ik.imagekit.io/8msldpqil">
-                <section id="menu" className="menu-section" style={{ marginTop: '116px' }}>
-                    {/* Sidebar Filter */}
-                    <aside className="sidebar" style={{ top: '116px', height: 'calc(100vh - 116px)' }}>
-                        <CategoryFilter
-                            activeCategory={activeCategory}
-                            onCategoryChange={setActiveCategory}
-                        />
-                    </aside>
-
-                    {/* Menu Content */}
-                    <div className="menu-content" style={{ minHeight: 'calc(100vh - 116px)' }}>
-                        {/* Search Bar */}
-                        <div className="search-bar">
-                            <input
-                                type="text"
-                                placeholder="ค้นหาจากชื่อ..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="search-input"
+                <ImageKitProvider urlEndpoint="https://ik.imagekit.io/8msldpqil">
+                    <section id="menu" className="menu-section" style={{ marginTop: `${TOTAL_TOP}px` }}>
+                        {/* Sidebar Filter */}
+                        <aside className="sidebar" style={{ top: `${TOTAL_TOP}px`, height: `calc(100vh - ${TOTAL_TOP}px)` }}>
+                            <CategoryFilter
+                                activeCategory={activeCategory}
+                                onCategoryChange={setActiveCategory}
                             />
-                        </div>
+                        </aside>
 
-                        {/* Menu Items List */}
-                        <div className="menu-list">
-                            {loading ? (
-                                <div className="empty-state">
-                                    <div className="text-5xl mb-4 animate-spin">🍲</div>
-                                    <h3>กำลังโหลดเมนู...</h3>
-                                </div>
-                            ) : filteredItems.length > 0 ? (
-                                filteredItems.map((item) => (
-                                    <MenuCard key={item.id} item={item} />
-                                ))
-                            ) : (
-                                <div className="empty-state">
-                                    <div className="text-5xl mb-4">🔍</div>
-                                    <h3>ไม่พบเมนู</h3>
-                                    <p>ลองค้นหาด้วยคำอื่น</p>
-                                    <button
-                                        onClick={() => {
-                                            setSearchQuery('');
-                                            setActiveCategory('all');
-                                        }}
-                                        className="btn-primary"
-                                    >
-                                        ล้างตัวกรอง
-                                    </button>
-                                </div>
-                            )}
+                        {/* Menu Content */}
+                        <div className="menu-content" style={{ minHeight: `calc(100vh - ${TOTAL_TOP}px)` }}>
+                            {/* Search Bar */}
+                            <div className="search-bar">
+                                <input
+                                    type="text"
+                                    placeholder="ค้นหาเมนู..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="search-input"
+                                />
+                            </div>
+
+                            {/* Menu Items */}
+                            <div className="menu-list">
+                                {loading ? (
+                                    <div className="empty-state">
+                                        <div style={{ width: 40, height: 40, border: '3px solid #eee', borderTopColor: '#FF6B4A', borderRadius: '50%', margin: '0 auto 16px', animation: 'tbl-spin 1s linear infinite' }} />
+                                        <h3>กำลังโหลดเมนู...</h3>
+                                    </div>
+                                ) : filteredItems.length > 0 ? (
+                                    filteredItems.map((item) => (
+                                        <MenuCard key={item.id} item={item} />
+                                    ))
+                                ) : (
+                                    <div className="empty-state">
+                                        <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🔍</div>
+                                        <h3>ไม่พบเมนู</h3>
+                                        <p>ลองค้นหาด้วยคำอื่น หรือเลือกหมวดหมู่อื่น</p>
+                                        <button
+                                            onClick={() => { setSearchQuery(''); setActiveCategory('all'); }}
+                                            className="btn-primary"
+                                        >
+                                            ล้างตัวกรอง
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                </section>
-            </ImageKitProvider>
+                    </section>
+                </ImageKitProvider>
             )}
         </>
     );
