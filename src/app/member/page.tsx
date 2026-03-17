@@ -839,6 +839,8 @@ interface DBCoupon {
   used_count: number;
   claimed?: boolean;      // has this member already claimed it?
   claimed_at?: string;    // for mine endpoint
+  mc_id?: number;
+  is_used?: number;
 }
 
 function CouponCopyButton({ code }: { code: string }) {
@@ -873,6 +875,76 @@ function timeLeftStr(expiresAt: string) {
   return `เหลือ ${Math.floor((diff % 3600000) / 60000)} นาที`;
 }
 
+function CouponQrModal({ couponId, couponTitle, discountType, discountValue, onClose, onUsed }: {
+  couponId: number; couponTitle: string; discountType: string; discountValue: number;
+  onClose: () => void; onUsed: () => void;
+}) {
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [error, setError] = useState('');
+  const [checking, setChecking] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tokenRef = useRef('');
+
+  useEffect(() => {
+    fetch(`/api/coupons/mine/qr?couponId=${couponId}`)
+      .then(r => r.json())
+      .then(async data => {
+        if (data.qrToken) {
+          tokenRef.current = data.qrToken;
+          const QRCode = (await import('qrcode')).default;
+          const url = await QRCode.toDataURL(data.qrToken, { width: 240, margin: 1, color: { dark: '#1a1a1a', light: '#ffffff' } });
+          setQrDataUrl(url);
+          // Poll to check if coupon was used
+          pollRef.current = setInterval(async () => {
+            const r = await fetch('/api/coupons/mine').then(x => x.json()).catch(() => null);
+            if (r?.coupons) {
+              const stillExists = r.coupons.some((c: any) => c.id === couponId);
+              if (!stillExists) { clearInterval(pollRef.current!); onUsed(); }
+            }
+          }, 3000);
+        } else {
+          setError(data.error || 'เกิดข้อผิดพลาด');
+        }
+      })
+      .catch(() => setError('ไม่สามารถโหลด QR ได้'));
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [couponId, onUsed]);
+
+  const discountLabel = discountType === 'percent' ? `ลด ${discountValue}%` : `ลด ฿${discountValue.toLocaleString()}`;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: '#3D352E', borderRadius: 20, padding: 24, width: '100%', maxWidth: 320, textAlign: 'center', animation: 'mem-scaleIn 0.25s ease' }}>
+        <div style={{ fontSize: 13, color: '#b5a99d', marginBottom: 4 }}>คูปองส่วนลด</div>
+        <div style={{ fontSize: 17, fontWeight: 700, color: '#ffffff', marginBottom: 2 }}>{couponTitle}</div>
+        <div style={{ fontSize: 22, fontWeight: 900, color: '#FF6B4A', marginBottom: 20 }}>{discountLabel}</div>
+
+        {error ? (
+          <div style={{ color: '#f87171', fontSize: 13, padding: '12px 0' }}>{error}</div>
+        ) : !qrDataUrl ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '20px 0' }}>
+            <div style={{ width: 36, height: 36, border: '3px solid rgba(255,107,74,0.2)', borderTopColor: '#FF6B4A', borderRadius: '50%', animation: 'mem-spin 0.8s linear infinite' }} />
+            <div style={{ color: '#b5a99d', fontSize: 13 }}>กำลังสร้าง QR...</div>
+          </div>
+        ) : (
+          <>
+            <div style={{ background: '#ffffff', borderRadius: 12, padding: 12, display: 'inline-block', marginBottom: 12 }}>
+              <img src={qrDataUrl} alt="Coupon QR" style={{ display: 'block', width: 200, height: 200 }} />
+            </div>
+            <div style={{ fontSize: 12, color: '#8a7a72', marginBottom: 20, lineHeight: 1.6 }}>
+              {checking ? '✓ กำลังตรวจสอบ...' : 'ให้พนักงานสแกน QR เพื่อใช้คูปอง'}
+            </div>
+          </>
+        )}
+
+        <button onClick={onClose} style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#b5a99d', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          ปิด
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate: (pts: number) => void }) {
   const [innerTab, setInnerTab] = useState<'available' | 'claimed'>('available');
   const [available, setAvailable] = useState<DBCoupon[]>([]);
@@ -880,6 +952,7 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState<number | null>(null);
   const [redeemError, setRedeemError] = useState('');
+  const [showQrCoupon, setShowQrCoupon] = useState<DBCoupon | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -987,18 +1060,24 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
 
             {/* Action area */}
             {isMine && c.code ? (
-              // Already claimed — show code + copy
+              // Already claimed — show QR button (if not expired)
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  background: isExpiredCoupon ? 'rgba(255,255,255,0.12)' : 'rgba(255,107,74,0.08)',
-                  color: isExpiredCoupon ? '#b5a99d' : '#FF6B4A',
-                  fontSize: 12, fontWeight: 800,
-                  padding: '3px 10px', borderRadius: 4,
-                  letterSpacing: 1, fontFamily: 'monospace',
-                }}>
-                  {c.code}
-                </span>
-                {!isExpiredCoupon && <CouponCopyButton code={c.code} />}
+                {!isExpiredCoupon ? (
+                  <button
+                    onClick={() => setShowQrCoupon(c)}
+                    style={{
+                      padding: '6px 16px', borderRadius: 8, border: 'none',
+                      background: '#FF6B4A', color: '#fff',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zm3 3h3v3h-3zm-3 3h3"/></svg>
+                    แสดง QR ใช้คูปอง
+                  </button>
+                ) : (
+                  <span style={{ fontSize: 12, color: '#8a7a72', fontWeight: 600 }}>หมดอายุแล้ว</span>
+                )}
               </div>
             ) : isRedeemed && c.code ? (
               // Claimed from available list
@@ -1092,10 +1171,20 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
 
         {!loading && innerTab === 'claimed' && myCoupons.some(c => new Date(c.expires_at).getTime() > Date.now()) && (
           <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(255,107,74,0.08)', borderRadius: 8, fontSize: 12, color: '#b5a99d', lineHeight: 1.6 }}>
-            💡 คัดลอกรหัสคูปองแล้วแจ้งพนักงานก่อนชำระเงิน
+            💡 กดแสดง QR ให้พนักงานสแกน เพื่อใช้คูปองส่วนลด
           </div>
         )}
       </div>
+      {showQrCoupon && (
+        <CouponQrModal
+          couponId={showQrCoupon.id}
+          couponTitle={showQrCoupon.title}
+          discountType={showQrCoupon.discount_type}
+          discountValue={showQrCoupon.discount_value}
+          onClose={() => setShowQrCoupon(null)}
+          onUsed={() => { setShowQrCoupon(null); loadAll(); }}
+        />
+      )}
     </div>
   );
 }
@@ -1587,6 +1676,7 @@ function ProfileCompleteScreen({ member, onComplete }: { member: Member; onCompl
 
 function LoginScreen({ onLogin: _onLogin }: { onLogin: (member: Member) => void }) {
   const [error, setError] = useState('');
+  const [lineLoading, setLineLoading] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1598,6 +1688,7 @@ function LoginScreen({ onLogin: _onLogin }: { onLogin: (member: Member) => void 
   function handleLineLogin() {
     const clientId = process.env.NEXT_PUBLIC_LINE_CHANNEL_ID;
     if (!clientId) { setError('LINE Login ยังไม่ได้ตั้งค่า'); return; }
+    setLineLoading(true);
     const redirectUri = `${window.location.origin}/api/auth/line/callback`;
     const state = Math.random().toString(36).substring(2, 10);
     const url = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=profile`;
@@ -1640,21 +1731,32 @@ function LoginScreen({ onLogin: _onLogin }: { onLogin: (member: Member) => void 
 
         <button
           onClick={handleLineLogin}
+          disabled={lineLoading}
           style={{
             width: '100%', padding: '14px 0',
-            background: '#06C755', color: '#fff',
+            background: lineLoading ? 'rgba(6,199,85,0.6)' : '#06C755', color: '#fff',
             border: 'none', borderRadius: 12,
-            fontSize: 16, fontWeight: 700, cursor: 'pointer',
+            fontSize: 16, fontWeight: 700, cursor: lineLoading ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
             boxShadow: '0 4px 16px rgba(6,199,85,0.4)',
+            transition: 'background 0.2s',
           }}
         >
+          {lineLoading ? (
+            <>
+              <div style={{ width: 22, height: 22, border: '3px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'mem-spin 0.75s linear infinite', flexShrink: 0 }} />
+              กำลังเชื่อมต่อ LINE...
+            </>
+          ) : (
+            <>
               <svg width="24" height="24" viewBox="0 0 36 36" fill="none">
                 <rect width="36" height="36" rx="8" fill="#fff" fillOpacity="0.2" />
                 <path d="M18 7C11.925 7 7 11.477 7 17.012c0 4.97 4.41 9.129 10.376 9.914.404.087.953.267 1.092.614.125.314.082.806.04 1.124l-.177 1.062c-.054.314-.25 1.23 1.077.671 1.327-.558 7.163-4.22 9.773-7.227C30.822 21.5 31 19.32 31 17.012 31 11.477 24.075 7 18 7z" fill="white" />
                 <path d="M15.2 19.8h-2.5v-5H14v3.8h1.2v1.2zm1.6 0h-1.2v-5h1.2v5zm4.8 0h-1.2l-2-3.1v3.1h-1.2v-5h1.2l2 3.1v-3.1h1.2v5zm3.8-3.8h-2v.8h2v1.2h-2v.8h2v1.2h-3.2v-5h3.2v1z" fill="#06C755" />
               </svg>
               เข้าสู่ระบบด้วย LINE
+            </>
+          )}
         </button>
 
         <p style={{ fontSize: 12, color: '#8a7a72', textAlign: 'center', marginTop: 16 }}>
@@ -1731,22 +1833,18 @@ export default function MemberPage() {
   const [hydrated, setHydrated] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
 
-  // Load from localStorage or JWT cookie (set by LINE callback / phone login) after hydration
+  // Always verify session with server on page load — localStorage is only a cache
   useEffect(() => {
-    // Try localStorage first
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setMember(JSON.parse(stored));
-        setHydrated(true);
-        return;
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    }
-    // Try fetching from API (covers LINE login which sets httpOnly member_token JWT)
     fetch('/api/members/me')
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) {
+          // Session expired or invalid — clear local cache and show login
+          localStorage.removeItem(STORAGE_KEY);
+          setHydrated(true);
+          return null;
+        }
+        return r.json();
+      })
       .then((data) => {
         if (data?.member) {
           setMember(data.member);
@@ -1755,7 +1853,10 @@ export default function MemberPage() {
         }
         setHydrated(true);
       })
-      .catch(() => setHydrated(true));
+      .catch(() => {
+        localStorage.removeItem(STORAGE_KEY);
+        setHydrated(true);
+      });
   }, []);
 
   function handleLogin(m: Member) {
@@ -1795,7 +1896,18 @@ export default function MemberPage() {
       .catch(() => {});
   }
 
-  if (!hydrated) return null;
+  if (!hydrated) return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(160deg, #2D2520 0%, #3D352E 60%, #2D2520 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+      fontFamily: "'Noto Sans Thai', 'Sarabun', sans-serif",
+    }}>
+      <style>{`@keyframes mem-spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ width: 48, height: 48, border: '4px solid rgba(255,107,74,0.2)', borderTopColor: '#FF6B4A', borderRadius: '50%', animation: 'mem-spin 0.8s linear infinite' }} />
+      <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>กำลังตรวจสอบ...</div>
+    </div>
+  );
 
   if (!member) {
     return (
@@ -1872,6 +1984,9 @@ export default function MemberPage() {
           0%   { transform: scale(0); opacity: 0; }
           70%  { transform: scale(1.15); }
           100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes mem-spin {
+          to { transform: rotate(360deg); }
         }
         .mem-btn-press:active { transform: scale(0.96); transition: transform 0.1s; }
         .mem-tab-btn { transition: all 0.2s ease; }

@@ -284,6 +284,12 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Add new columns to member_coupons if not exist
+    await connection.query(`ALTER TABLE member_coupons ADD COLUMN IF NOT EXISTS is_used TINYINT(1) NOT NULL DEFAULT 0`).catch(() => {});
+    await connection.query(`ALTER TABLE member_coupons ADD COLUMN IF NOT EXISTS used_at DATETIME NULL`).catch(() => {});
+    await connection.query(`ALTER TABLE member_coupons ADD COLUMN IF NOT EXISTS qr_token VARCHAR(64) NULL`).catch(() => {});
+    await connection.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mc_qr_token ON member_coupons (qr_token)`).catch(() => {});
+
     // Create receipts table to store checkout receipt logs
     await connection.query(`
       CREATE TABLE IF NOT EXISTS receipts (

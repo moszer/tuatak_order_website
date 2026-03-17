@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface Coupon {
   id: number;
@@ -25,10 +25,193 @@ function generateCode() {
   return code;
 }
 
+function CouponScanModal({ onClose }: { onClose: () => void }) {
+  type State = 'idle' | 'scanning' | 'processing' | 'success' | 'error';
+  const [state, setState] = useState<State>('idle');
+  const [result, setResult] = useState<{ memberName: string; memberPhone: string; couponTitle: string; discountType: string; discountValue: number } | null>(null);
+  const [errMsg, setErrMsg] = useState('');
+  const [manualInput, setManualInput] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const processingRef = useRef(false);
+
+  const stopCamera = useCallback(() => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+  }, []);
+
+  useEffect(() => () => stopCamera(), [stopCamera]);
+
+  const submitToken = useCallback(async (token: string) => {
+    processingRef.current = true;
+    stopCamera();
+    setState('processing');
+    try {
+      const res = await fetch('/api/coupons/use', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrToken: token.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResult(data);
+        setState('success');
+      } else {
+        setErrMsg(data.error || 'เกิดข้อผิดพลาด');
+        setState('error');
+      }
+    } catch {
+      setErrMsg('เกิดข้อผิดพลาด กรุณาลองใหม่');
+      setState('error');
+    }
+  }, [stopCamera]);
+
+  const startCamera = useCallback(async () => {
+    setErrMsg(''); processingRef.current = false;
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+    } catch {
+      setErrMsg('ไม่สามารถเปิดกล้องได้'); setState('error'); return;
+    }
+    streamRef.current = stream;
+    setState('scanning');
+    await new Promise(r => setTimeout(r, 100));
+    const video = videoRef.current;
+    if (!video) { stopCamera(); return; }
+    video.srcObject = stream;
+    video.setAttribute('playsinline', 'true');
+    await video.play().catch(() => {});
+    let jsQR: any;
+    try { const mod = await import('jsqr'); jsQR = mod.default ?? mod; } catch { setErrMsg('โหลด QR scanner ไม่สำเร็จ'); setState('error'); stopCamera(); return; }
+    const canvas = canvasRef.current;
+    if (!canvas) { stopCamera(); return; }
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) { stopCamera(); return; }
+    intervalRef.current = setInterval(() => {
+      if (processingRef.current || !video || video.readyState < 3) return;
+      const w = video.videoWidth, h = video.videoHeight;
+      if (!w || !h) return;
+      canvas.width = w; canvas.height = h;
+      ctx.drawImage(video, 0, 0, w, h);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const r = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+      if (r?.data) submitToken(r.data);
+    }, 200);
+  }, [stopCamera, submitToken]);
+
+  const reset = () => { stopCamera(); processingRef.current = false; setState('idle'); setErrMsg(''); setResult(null); setManualInput(''); };
+  const discountLabel = result ? (result.discountType === 'percent' ? `ลด ${result.discountValue}%` : `ลด ฿${result.discountValue.toLocaleString()}`) : '';
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16 }}>
+      <style>{`@keyframes cp-spin{to{transform:rotate(360deg)}} @keyframes cp-scanLine{0%{top:8%}50%{top:88%}100%{top:8%}}`}</style>
+      <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: 16, width: '100%', maxWidth: 400, overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #1a2332' }}>
+          <span style={{ fontWeight: 700, fontSize: 16, color: '#f1f5f9' }}>🎟️ สแกนคูปองลูกค้า</span>
+          <button onClick={() => { stopCamera(); onClose(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20, lineHeight: 1 }}>✕</button>
+        </div>
+
+        <div style={{ padding: '20px' }}>
+          {/* Idle */}
+          {state === 'idle' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button onClick={startCamera} style={{ padding: '12px 0', borderRadius: 10, border: 'none', background: '#f59e0b', color: '#0a0f1a', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                เปิดกล้องสแกน QR
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ flex: 1, height: 1, background: '#1a2332' }} />
+                <span style={{ color: '#334155', fontSize: 12 }}>หรือ</span>
+                <div style={{ flex: 1, height: 1, background: '#1a2332' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={manualInput}
+                  onChange={e => setManualInput(e.target.value)}
+                  placeholder="วาง token จาก QR..."
+                  style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid #1e293b', background: '#0d1117', color: '#f1f5f9', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+                />
+                <button onClick={() => manualInput && submitToken(manualInput)} disabled={!manualInput} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: manualInput ? '#f59e0b' : '#1e293b', color: manualInput ? '#0a0f1a' : '#334155', fontSize: 13, fontWeight: 700, cursor: manualInput ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+                  ใช้
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Scanning */}
+          {state === 'scanning' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <div style={{ position: 'relative', width: '100%', borderRadius: 10, overflow: 'hidden', background: '#000', aspectRatio: '4/3' }}>
+                <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} playsInline muted />
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
+                {/* Scan overlay */}
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: '55%', aspectRatio: '1', position: 'relative' }}>
+                    {[['0 0 0 auto','0 auto auto 0'],['0 auto auto 0','0 0 0 auto'],['auto 0 0 auto','auto auto 0 0'],['auto auto 0 0','auto 0 0 auto']].map(([inset], i) => (
+                      <div key={i} style={{ position: 'absolute', width: 20, height: 20, borderColor: '#f59e0b', borderStyle: 'solid', borderWidth: 0, ...(i===0?{top:0,left:0,borderTopWidth:3,borderLeftWidth:3}:i===1?{top:0,right:0,borderTopWidth:3,borderRightWidth:3}:i===2?{bottom:0,left:0,borderBottomWidth:3,borderLeftWidth:3}:{bottom:0,right:0,borderBottomWidth:3,borderRightWidth:3}) }} />
+                    ))}
+                    <div style={{ position: 'absolute', left: '12%', right: '12%', height: 2, background: 'linear-gradient(90deg,transparent,#f59e0b,transparent)', animation: 'cp-scanLine 2s ease-in-out infinite', boxShadow: '0 0 6px rgba(245,158,11,0.8)' }} />
+                  </div>
+                </div>
+              </div>
+              <div style={{ color: '#64748b', fontSize: 13 }}>กำลังสแกน QR คูปอง...</div>
+              <button onClick={reset} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #1e293b', background: 'transparent', color: '#94a3b8', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>ยกเลิก</button>
+            </div>
+          )}
+
+          {/* Processing */}
+          {state === 'processing' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '20px 0' }}>
+              <div style={{ width: 40, height: 40, border: '3px solid rgba(245,158,11,0.2)', borderTopColor: '#f59e0b', borderRadius: '50%', animation: 'cp-spin 0.8s linear infinite' }} />
+              <div style={{ color: '#64748b', fontSize: 14 }}>กำลังตรวจสอบ...</div>
+            </div>
+          )}
+
+          {/* Success */}
+          {state === 'success' && result && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(52,211,153,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#34d399', marginBottom: 4 }}>ใช้คูปองสำเร็จ!</div>
+                <div style={{ fontSize: 14, color: '#f1f5f9', fontWeight: 600 }}>{result.couponTitle}</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: '#f59e0b', margin: '8px 0' }}>{discountLabel}</div>
+                <div style={{ fontSize: 13, color: '#64748b' }}>{result.memberName}{result.memberPhone ? ` · ${result.memberPhone}` : ''}</div>
+              </div>
+              <button onClick={reset} style={{ padding: '10px 28px', borderRadius: 10, border: 'none', background: '#f59e0b', color: '#0a0f1a', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                สแกนอีกครั้ง
+              </button>
+            </div>
+          )}
+
+          {/* Error */}
+          {state === 'error' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+              <div style={{ fontSize: 14, color: '#f87171' }}>{errMsg}</div>
+              <button onClick={reset} style={{ padding: '10px 28px', borderRadius: 10, border: 'none', background: '#f59e0b', color: '#0a0f1a', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                ลองใหม่
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [scanModal, setScanModal] = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -125,6 +308,13 @@ export default function AdminCouponsPage() {
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ color: '#f1f5f9', fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>🎟️ จัดการคูปอง</h1>
         <p style={{ color: '#475569', fontSize: '0.82rem', margin: '4px 0 0' }}>สร้างและจัดการคูปองส่วนลดสำหรับลูกค้า</p>
+        <button
+          onClick={() => setScanModal(true)}
+          style={{ marginTop: 12, padding: '10px 20px', borderRadius: 10, border: 'none', background: '#f59e0b', color: '#0a0f1a', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zm3 3h3v3h-3zm-3 3h3"/></svg>
+          สแกนคูปองลูกค้า
+        </button>
       </div>
 
       <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1.5fr)', alignItems: 'start' }}>
@@ -349,6 +539,7 @@ export default function AdminCouponsPage() {
           )}
         </div>
       </div>
+      {scanModal && <CouponScanModal onClose={() => setScanModal(false)} />}
     </div>
   );
 }
