@@ -1080,14 +1080,18 @@ function CouponCard({ c, isMine, member, redeeming, onRedeem, onShowQr }: {
 
 // ─── Tab Rewards ──────────────────────────────────────────────────────────────
 
-function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate: (pts: number) => void }) {
+function TabRewards({ member, onPointsUpdate, onShowQr, registerSilentRefresh }: {
+  member: Member;
+  onPointsUpdate: (pts: number) => void;
+  onShowQr: (c: DBCoupon) => void;
+  registerSilentRefresh: (fn: () => void) => void;
+}) {
   const [innerTab, setInnerTab] = useState<'available' | 'claimed'>('available');
   const [available, setAvailable] = useState<DBCoupon[]>([]);
   const [myCoupons, setMyCoupons] = useState<DBCoupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState<number | null>(null);
   const [redeemError, setRedeemError] = useState('');
-  const [showQrCoupon, setShowQrCoupon] = useState<DBCoupon | null>(null);
 
   const silentRefresh = useCallback(async () => {
     const [avRes, myRes] = await Promise.all([
@@ -1097,6 +1101,9 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
     setAvailable(avRes.coupons || []);
     setMyCoupons(myRes.coupons || []);
   }, []);
+
+  // Expose silentRefresh to parent so CouponQrModal (rendered in MemberPage) can call it
+  useEffect(() => { registerSilentRefresh(silentRefresh); }, [silentRefresh, registerSilentRefresh]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -1181,7 +1188,7 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {list.map((c, i) => (
               <div key={c.id} style={{ animation: `mem-fadeInUp 0.35s ease ${i * 0.07}s both` }}>
-                <CouponCard c={c} isMine={innerTab === 'claimed'} member={member} redeeming={redeeming} onRedeem={handleRedeem} onShowQr={setShowQrCoupon} />
+                <CouponCard c={c} isMine={innerTab === 'claimed'} member={member} redeeming={redeeming} onRedeem={handleRedeem} onShowQr={onShowQr} />
               </div>
             ))}
           </div>
@@ -1193,16 +1200,6 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
           </div>
         )}
       </div>
-      {showQrCoupon && (
-        <CouponQrModal
-          couponId={showQrCoupon.id}
-          couponTitle={showQrCoupon.title}
-          discountType={showQrCoupon.discount_type}
-          discountValue={showQrCoupon.discount_value}
-          onClose={() => setShowQrCoupon(null)}
-          onUsed={() => { setShowQrCoupon(null); silentRefresh(); }}
-        />
-      )}
     </div>
   );
 }
@@ -1850,6 +1847,9 @@ export default function MemberPage() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [hydrated, setHydrated] = useState(false);
   const [showScanModal, setShowScanModal] = useState(false);
+  // CouponQrModal lives here (above TabRewards) so re-renders of TabRewards can't close it
+  const [showQrCoupon, setShowQrCoupon] = useState<DBCoupon | null>(null);
+  const couponSilentRefreshRef = useRef<(() => void) | null>(null);
 
   // Always verify session with server on page load — localStorage is only a cache
   useEffect(() => {
@@ -2012,7 +2012,7 @@ export default function MemberPage() {
       `}</style>
       {activeTab === 'home' && <TabHome member={member} onRefresh={handleRefresh} onScan={() => setShowScanModal(true)} />}
       {activeTab === 'card' && <TabMemberCard member={member} history={history} onScan={() => setShowScanModal(true)} />}
-      {activeTab === 'rewards' && <TabRewards member={member} onPointsUpdate={(pts) => setMember(m => m ? { ...m, points: pts } : m)} />}
+      {activeTab === 'rewards' && <TabRewards member={member} onPointsUpdate={(pts) => setMember(m => m ? { ...m, points: pts } : m)} onShowQr={setShowQrCoupon} registerSilentRefresh={(fn) => { couponSilentRefreshRef.current = fn; }} />}
       {activeTab === 'profile' && <TabProfile member={member} onLogout={handleLogout} />}
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -2020,6 +2020,16 @@ export default function MemberPage() {
         <QrScanModal
           onClose={() => setShowScanModal(false)}
           onSuccess={() => { setShowScanModal(false); handleRefresh(); }}
+        />
+      )}
+      {showQrCoupon && (
+        <CouponQrModal
+          couponId={showQrCoupon.id}
+          couponTitle={showQrCoupon.title}
+          discountType={showQrCoupon.discount_type}
+          discountValue={showQrCoupon.discount_value}
+          onClose={() => setShowQrCoupon(null)}
+          onUsed={() => { setShowQrCoupon(null); couponSilentRefreshRef.current?.(); }}
         />
       )}
     </div>
