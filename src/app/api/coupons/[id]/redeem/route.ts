@@ -17,7 +17,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   // Get coupon
   const [coupons] = await pool.query(
-    `SELECT id, code, title, points_cost, expires_at, is_active, max_uses, used_count
+    `SELECT id, code, title, points_cost, expires_at, is_active, max_uses, used_count, per_member_uses
      FROM coupons WHERE id = ?`,
     [couponId]
   ) as any;
@@ -38,13 +38,16 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'คูปองนี้ถูกแลกครบแล้ว' }, { status: 400 });
   }
 
-  // Check if already claimed
+  // Check per-member usage limit
+  const perLimit = coupon.per_member_uses || 1;
   const [existing] = await pool.query(
-    'SELECT id FROM member_coupons WHERE member_id = ? AND coupon_id = ?',
+    'SELECT COUNT(*) as cnt FROM member_coupons WHERE member_id = ? AND coupon_id = ?',
     [member.memberId, couponId]
   ) as any;
-  if ((existing as any[]).length > 0) {
-    return NextResponse.json({ error: 'คุณแลกคูปองนี้ไปแล้ว', code: coupon.code }, { status: 409 });
+  const existingCount = Number((existing as any[])[0].cnt);
+  if (perLimit > 0 && existingCount >= perLimit) {
+    const limitMsg = perLimit === 1 ? 'คุณแลกคูปองนี้ไปแล้ว' : `คุณแลกคูปองนี้ครบ ${perLimit} ครั้งแล้ว`;
+    return NextResponse.json({ error: limitMsg, code: coupon.code }, { status: 409 });
   }
 
   // Get member's current points

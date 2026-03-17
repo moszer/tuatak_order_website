@@ -13,16 +13,15 @@ export async function GET(req: NextRequest) {
 
   const pool = await connectToDatabase();
 
-  // Find the member_coupon
+  // Find the first unused member_coupon
   const [rows] = await pool.query(
-    'SELECT id, is_used, qr_token FROM member_coupons WHERE member_id = ? AND coupon_id = ?',
+    'SELECT id, is_used, qr_token FROM member_coupons WHERE member_id = ? AND coupon_id = ? AND is_used = 0 ORDER BY id ASC LIMIT 1',
     [member.memberId, couponId]
   ) as any;
 
-  if (!(rows as any[]).length) return NextResponse.json({ error: 'ไม่พบคูปองนี้ในบัญชีของคุณ' }, { status: 404 });
+  if (!(rows as any[]).length) return NextResponse.json({ error: 'ไม่พบคูปองที่ยังไม่ได้ใช้' }, { status: 404 });
 
   const mc = (rows as any[])[0];
-  if (mc.is_used) return NextResponse.json({ error: 'คูปองนี้ถูกใช้ไปแล้ว' }, { status: 400 });
 
   // Generate qr_token if not exists
   let token = mc.qr_token;

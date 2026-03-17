@@ -841,6 +841,8 @@ interface DBCoupon {
   claimed_at?: string;    // for mine endpoint
   mc_id?: number;
   is_used?: number;
+  per_member_uses?: number;
+  owned_count?: number;
 }
 
 function CouponCopyButton({ code }: { code: string }) {
@@ -945,50 +947,14 @@ function CouponQrModal({ couponId, couponTitle, discountType, discountValue, onC
   );
 }
 
-function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate: (pts: number) => void }) {
-  const [innerTab, setInnerTab] = useState<'available' | 'claimed'>('available');
-  const [available, setAvailable] = useState<DBCoupon[]>([]);
-  const [myCoupons, setMyCoupons] = useState<DBCoupon[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [redeeming, setRedeeming] = useState<number | null>(null);
-  const [redeemError, setRedeemError] = useState('');
-  const [showQrCoupon, setShowQrCoupon] = useState<DBCoupon | null>(null);
+// ─── CouponCard (must be outside TabRewards to avoid remount blinking) ────────
 
-  const loadAll = async () => {
-    setLoading(true);
-    const [avRes, myRes] = await Promise.all([
-      fetch('/api/coupons').then(r => r.json()),
-      fetch('/api/coupons/mine').then(r => r.json()).catch(() => ({ coupons: [] })),
-    ]);
-    setAvailable(avRes.coupons || []);
-    setMyCoupons(myRes.coupons || []);
-    setLoading(false);
-  };
-
-  useEffect(() => { loadAll(); }, []);
-
-  const handleRedeem = async (c: DBCoupon) => {
-    setRedeemError('');
-    setRedeeming(c.id);
-    try {
-      const res = await fetch(`/api/coupons/${c.id}/redeem`, { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        onPointsUpdate(data.newPoints);
-        await loadAll();
-      } else {
-        setRedeemError(data.error || 'เกิดข้อผิดพลาด');
-      }
-    } catch {
-      setRedeemError('เกิดข้อผิดพลาด กรุณาลองใหม่');
-    } finally {
-      setRedeeming(null);
-    }
-  };
-
-  const list = innerTab === 'available' ? available : myCoupons;
-
-  const CouponCard = ({ c, isMine }: { c: DBCoupon; isMine: boolean }) => {
+function CouponCard({ c, isMine, member, redeeming, onRedeem, onShowQr }: {
+  c: DBCoupon; isMine: boolean; member: Member;
+  redeeming: number | null;
+  onRedeem: (c: DBCoupon) => void;
+  onShowQr: (c: DBCoupon) => void;
+}) {
     const isExpiredCoupon = new Date(c.expires_at).getTime() < Date.now();
     const remaining = c.max_uses > 0 ? c.max_uses - c.used_count : null;
     const canAfford = member.points >= c.points_cost;
@@ -1056,6 +1022,11 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
               <span style={{ fontSize: 11, color: '#b5a99d', background: '#2D2520', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: '1px 6px' }}>
                 {timeLeftStr(c.expires_at)}
               </span>
+              {isMine && c.owned_count && c.owned_count > 1 && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 4, padding: '1px 6px' }}>
+                  เหลือ {c.owned_count} ครั้ง
+                </span>
+              )}
             </div>
 
             {/* Action area */}
@@ -1064,7 +1035,7 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {!isExpiredCoupon ? (
                   <button
-                    onClick={() => setShowQrCoupon(c)}
+                    onClick={() => onShowQr(c)}
                     style={{
                       padding: '6px 16px', borderRadius: 8, border: 'none',
                       background: '#FF6B4A', color: '#fff',
@@ -1090,7 +1061,7 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
             ) : (
               // Not yet claimed — show redeem button
               <button
-                onClick={() => handleRedeem(c)}
+                onClick={() => onRedeem(c)}
                 disabled={redeeming === c.id || !canAfford}
                 style={{
                   padding: '6px 16px', borderRadius: 8, border: 'none',
@@ -1107,7 +1078,56 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
         </div>
       </div>
     );
+}
+
+// ─── Tab Rewards ──────────────────────────────────────────────────────────────
+
+function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate: (pts: number) => void }) {
+  const [innerTab, setInnerTab] = useState<'available' | 'claimed'>('available');
+  const [available, setAvailable] = useState<DBCoupon[]>([]);
+  const [myCoupons, setMyCoupons] = useState<DBCoupon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [redeeming, setRedeeming] = useState<number | null>(null);
+  const [redeemError, setRedeemError] = useState('');
+  const [showQrCoupon, setShowQrCoupon] = useState<DBCoupon | null>(null);
+
+  const silentRefresh = useCallback(async () => {
+    const [avRes, myRes] = await Promise.all([
+      fetch('/api/coupons').then(r => r.json()).catch(() => ({ coupons: [] })),
+      fetch('/api/coupons/mine').then(r => r.json()).catch(() => ({ coupons: [] })),
+    ]);
+    setAvailable(avRes.coupons || []);
+    setMyCoupons(myRes.coupons || []);
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    await silentRefresh();
+    setLoading(false);
+  }, [silentRefresh]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const handleRedeem = async (c: DBCoupon) => {
+    setRedeemError('');
+    setRedeeming(c.id);
+    try {
+      const res = await fetch(`/api/coupons/${c.id}/redeem`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        onPointsUpdate(data.newPoints);
+        await silentRefresh();
+      } else {
+        setRedeemError(data.error || 'เกิดข้อผิดพลาด');
+      }
+    } catch {
+      setRedeemError('เกิดข้อผิดพลาด กรุณาลองใหม่');
+    } finally {
+      setRedeeming(null);
+    }
   };
+
+  const list = innerTab === 'available' ? available : myCoupons;
 
   return (
     <div style={{ paddingBottom: 80, animation: 'mem-fadeInUp 0.35s ease' }}>
@@ -1163,7 +1183,7 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {list.map((c, i) => (
               <div key={c.id} style={{ animation: `mem-fadeInUp 0.35s ease ${i * 0.07}s both` }}>
-                <CouponCard c={c} isMine={innerTab === 'claimed'} />
+                <CouponCard c={c} isMine={innerTab === 'claimed'} member={member} redeeming={redeeming} onRedeem={handleRedeem} onShowQr={setShowQrCoupon} />
               </div>
             ))}
           </div>
@@ -1182,7 +1202,7 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
           discountType={showQrCoupon.discount_type}
           discountValue={showQrCoupon.discount_value}
           onClose={() => setShowQrCoupon(null)}
-          onUsed={() => { setShowQrCoupon(null); loadAll(); }}
+          onUsed={() => { setShowQrCoupon(null); silentRefresh(); }}
         />
       )}
     </div>

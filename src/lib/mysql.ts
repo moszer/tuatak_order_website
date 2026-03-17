@@ -289,6 +289,8 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
     await connection.query(`ALTER TABLE member_coupons ADD COLUMN IF NOT EXISTS used_at DATETIME NULL`).catch(() => {});
     await connection.query(`ALTER TABLE member_coupons ADD COLUMN IF NOT EXISTS qr_token VARCHAR(64) NULL`).catch(() => {});
     await connection.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mc_qr_token ON member_coupons (qr_token)`).catch(() => {});
+    await connection.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS per_member_uses INT NOT NULL DEFAULT 1`).catch(() => {});
+    await connection.query(`ALTER TABLE member_coupons DROP INDEX unique_member_coupon`).catch(() => {});
 
     // Create receipts table to store checkout receipt logs
     await connection.query(`

@@ -15,6 +15,7 @@ interface Coupon {
   is_active: boolean;
   max_uses: number;
   used_count: number;
+  per_member_uses: number;
   createdAt: string;
 }
 
@@ -231,6 +232,7 @@ export default function AdminCouponsPage() {
     points_cost: 100,
     expires_hours: 168, // 7 days
     max_uses: 0,
+    per_member_uses: 1,
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -453,16 +455,31 @@ export default function AdminCouponsPage() {
               </div>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label className="cp-label">ใช้ได้กี่ครั้ง</label>
-              <input
-                className="cp-input"
-                type="number"
-                min={0}
-                value={form.max_uses}
-                onChange={e => setForm(f => ({ ...f, max_uses: Number(e.target.value) }))}
-                placeholder="0 = ไม่จำกัด"
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div>
+                <label className="cp-label">ใช้ได้ทั้งหมด (ครั้ง)</label>
+                <input
+                  className="cp-input"
+                  type="number"
+                  min={0}
+                  value={form.max_uses}
+                  onChange={e => setForm(f => ({ ...f, max_uses: Number(e.target.value) }))}
+                  placeholder="0 = ไม่จำกัด"
+                />
+                <div style={{ color: '#475569', fontSize: '0.72rem', marginTop: 4 }}>รวมทุกสมาชิก (0 = ไม่จำกัด)</div>
+              </div>
+              <div>
+                <label className="cp-label">ต่อสมาชิก (ครั้ง)</label>
+                <input
+                  className="cp-input"
+                  type="number"
+                  min={1}
+                  value={form.per_member_uses}
+                  onChange={e => setForm(f => ({ ...f, per_member_uses: Number(e.target.value) }))}
+                  placeholder="1"
+                />
+                <div style={{ color: '#475569', fontSize: '0.72rem', marginTop: 4 }}>แต่ละคนใช้ได้กี่ครั้ง</div>
+              </div>
             </div>
 
             <button
@@ -513,6 +530,9 @@ export default function AdminCouponsPage() {
                           <span style={{ color: '#fbbf24' }}>⭐ {c.points_cost > 0 ? `${c.points_cost} แต้ม` : 'ฟรี'}</span>
                           {c.min_order > 0 && <span>ขั้นต่ำ ฿{c.min_order.toLocaleString()}</span>}
                           <span>ใช้แล้ว {c.used_count}{c.max_uses > 0 ? `/${c.max_uses}` : ''} ครั้ง</span>
+                          {c.per_member_uses > 1 && (
+                            <span style={{ color: '#60a5fa', fontSize: '0.72rem' }}>· ต่อคน: {c.per_member_uses}x</span>
+                          )}
                           <span>หมดอายุ {new Date(c.expires_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}</span>
                         </div>
                       </div>

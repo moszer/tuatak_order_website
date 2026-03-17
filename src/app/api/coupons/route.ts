@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (isAdmin) {
     const [rows] = await pool.query(
       `SELECT id, code, title, description, discount_type, discount_value, min_order,
-              points_cost, expires_at, is_active, max_uses, used_count, createdAt
+              points_cost, expires_at, is_active, max_uses, used_count, per_member_uses, createdAt
        FROM coupons
        ORDER BY createdAt DESC
        LIMIT 200`
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   const [rows] = await pool.query(
     `SELECT id, title, description, discount_type, discount_value, min_order,
-            points_cost, expires_at, max_uses, used_count
+            points_cost, expires_at, max_uses, used_count, per_member_uses
      FROM coupons
      WHERE is_active = TRUE
        AND expires_at > NOW()
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { code, title, description, discount_type, discount_value, min_order, points_cost, expires_hours, max_uses } = await req.json();
+  const { code, title, description, discount_type, discount_value, min_order, points_cost, expires_hours, max_uses, per_member_uses } = await req.json();
 
   if (!code || !title) {
     return NextResponse.json({ error: 'กรุณาระบุรหัสคูปองและชื่อ' }, { status: 400 });
@@ -106,8 +106,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const [result] = await pool.query(
-      `INSERT INTO coupons (code, title, description, discount_type, discount_value, min_order, points_cost, expires_at, max_uses)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO coupons (code, title, description, discount_type, discount_value, min_order, points_cost, expires_at, max_uses, per_member_uses)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         code.trim().toUpperCase(),
         title.trim(),
@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
         points_cost || 0,
         expiresAt,
         max_uses || 0,
+        per_member_uses || 1,
       ]
     ) as any;
 
