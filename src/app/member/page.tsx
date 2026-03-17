@@ -714,36 +714,236 @@ function TabMemberCard({ member, history, onScan }: { member: Member; history: P
 
 // ─── Tab: รางวัลของฉัน ────────────────────────────────────────────────────────
 
-function TabRewards() {
-  const [innerTab, setInnerTab] = useState<'available' | 'used'>('available');
+interface DBCoupon {
+  id: number;
+  code?: string;          // only present after claiming
+  title: string;
+  description: string | null;
+  discount_type: 'percent' | 'fixed';
+  discount_value: number;
+  min_order: number;
+  points_cost: number;
+  expires_at: string;
+  max_uses: number;
+  used_count: number;
+  claimed?: boolean;      // has this member already claimed it?
+  claimed_at?: string;    // for mine endpoint
+}
+
+function CouponCopyButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try { await navigator.clipboard.writeText(code); }
+    catch { const el = document.createElement('textarea'); el.value = code; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={handleCopy} style={{
+      padding: '6px 14px', borderRadius: 8,
+      border: `1px solid ${copied ? '#38A169' : '#E53E3E'}`,
+      background: copied ? '#F0FFF4' : '#FFF5F5',
+      color: copied ? '#38A169' : '#E53E3E',
+      fontSize: 12, fontWeight: 700, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', gap: 4,
+    }}>
+      {copied ? '✓ คัดลอกแล้ว' : 'คัดลอกรหัส'}
+    </button>
+  );
+}
+
+function timeLeftStr(expiresAt: string) {
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (diff <= 0) return 'หมดอายุแล้ว';
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  if (days > 0) return `เหลือ ${days} วัน`;
+  if (hours > 0) return `เหลือ ${hours} ชม.`;
+  return `เหลือ ${Math.floor((diff % 3600000) / 60000)} นาที`;
+}
+
+function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate: (pts: number) => void }) {
+  const [innerTab, setInnerTab] = useState<'available' | 'claimed'>('available');
+  const [available, setAvailable] = useState<DBCoupon[]>([]);
+  const [myCoupons, setMyCoupons] = useState<DBCoupon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [redeeming, setRedeeming] = useState<number | null>(null);
+  const [redeemError, setRedeemError] = useState('');
+
+  const loadAll = async () => {
+    setLoading(true);
+    const [avRes, myRes] = await Promise.all([
+      fetch('/api/coupons').then(r => r.json()),
+      fetch('/api/coupons/mine').then(r => r.json()).catch(() => ({ coupons: [] })),
+    ]);
+    setAvailable(avRes.coupons || []);
+    setMyCoupons(myRes.coupons || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadAll(); }, []);
+
+  const handleRedeem = async (c: DBCoupon) => {
+    setRedeemError('');
+    setRedeeming(c.id);
+    try {
+      const res = await fetch(`/api/coupons/${c.id}/redeem`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        onPointsUpdate(data.newPoints);
+        await loadAll();
+      } else {
+        setRedeemError(data.error || 'เกิดข้อผิดพลาด');
+      }
+    } catch {
+      setRedeemError('เกิดข้อผิดพลาด กรุณาลองใหม่');
+    } finally {
+      setRedeeming(null);
+    }
+  };
+
+  const list = innerTab === 'available' ? available : myCoupons;
+
+  const CouponCard = ({ c, isMine }: { c: DBCoupon; isMine: boolean }) => {
+    const isExpiredCoupon = new Date(c.expires_at).getTime() < Date.now();
+    const remaining = c.max_uses > 0 ? c.max_uses - c.used_count : null;
+    const canAfford = member.points >= c.points_cost;
+    const isRedeemed = c.claimed || isMine;
+
+    return (
+      <div style={{
+        borderRadius: 12,
+        border: `1px solid ${isMine && isExpiredCoupon ? '#E2E8F0' : '#FED7D7'}`,
+        background: (isMine && isExpiredCoupon) ? '#F9F9F9' : '#fff',
+        overflow: 'hidden',
+        opacity: (isMine && isExpiredCoupon) ? 0.6 : 1,
+        boxShadow: (isMine && isExpiredCoupon) ? 'none' : '0 2px 8px rgba(229,62,62,0.06)',
+      }}>
+        <div style={{ height: 4, background: (isMine && isExpiredCoupon) ? '#CBD5E0' : 'linear-gradient(90deg,#E53E3E,#FC8181)' }} />
+        <div style={{ display: 'flex' }}>
+          {/* Left: discount value */}
+          <div style={{
+            width: 80, flexShrink: 0,
+            borderRight: '1px dashed #FED7D7',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '12px 4px', textAlign: 'center',
+            background: (isMine && isExpiredCoupon) ? 'transparent' : '#FFF5F5',
+          }}>
+            <div style={{ color: (isMine && isExpiredCoupon) ? '#A0AEC0' : '#E53E3E', fontSize: c.discount_type === 'percent' ? 20 : 15, fontWeight: 900, lineHeight: 1 }}>
+              {c.discount_type === 'percent' ? `${c.discount_value}%` : `฿${c.discount_value.toLocaleString()}`}
+            </div>
+            <div style={{ color: '#A0AEC0', fontSize: 10, fontWeight: 600, marginTop: 3, textTransform: 'uppercase' }}>
+              {c.discount_type === 'percent' ? 'ส่วนลด' : 'บาท'}
+            </div>
+          </div>
+
+          {/* Right: details */}
+          <div style={{ flex: 1, padding: '10px 12px' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#1A202C', marginBottom: 2 }}>{c.title}</div>
+            {c.description && <div style={{ fontSize: 11, color: '#718096', marginBottom: 4 }}>{c.description}</div>}
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+              {/* Points cost badge */}
+              {c.points_cost > 0 ? (
+                <span style={{
+                  fontSize: 11, fontWeight: 700,
+                  color: isRedeemed ? '#718096' : (canAfford ? '#D97706' : '#E53E3E'),
+                  background: isRedeemed ? '#F7FAFC' : (canAfford ? '#FFFBEB' : '#FFF5F5'),
+                  border: `1px solid ${isRedeemed ? '#E2E8F0' : (canAfford ? '#FDE68A' : '#FED7D7')}`,
+                  borderRadius: 4, padding: '1px 6px',
+                }}>
+                  ⭐ {c.points_cost} แต้ม
+                </span>
+              ) : (
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#38A169', background: '#F0FFF4', border: '1px solid #9AE6B4', borderRadius: 4, padding: '1px 6px' }}>
+                  ฟรี!
+                </span>
+              )}
+              {c.min_order > 0 && (
+                <span style={{ fontSize: 11, color: '#718096', background: '#F7FAFC', border: '1px solid #E2E8F0', borderRadius: 4, padding: '1px 6px' }}>
+                  ขั้นต่ำ ฿{c.min_order.toLocaleString()}
+                </span>
+              )}
+              {remaining !== null && (
+                <span style={{ fontSize: 11, color: remaining <= 5 ? '#E53E3E' : '#718096', background: '#F7FAFC', border: `1px solid ${remaining <= 5 ? '#FED7D7' : '#E2E8F0'}`, borderRadius: 4, padding: '1px 6px' }}>
+                  เหลือ {remaining} สิทธิ์
+                </span>
+              )}
+              <span style={{ fontSize: 11, color: '#718096', background: '#F7FAFC', border: '1px solid #E2E8F0', borderRadius: 4, padding: '1px 6px' }}>
+                {timeLeftStr(c.expires_at)}
+              </span>
+            </div>
+
+            {/* Action area */}
+            {isMine && c.code ? (
+              // Already claimed — show code + copy
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  background: isExpiredCoupon ? '#E2E8F0' : '#FFF5F5',
+                  color: isExpiredCoupon ? '#718096' : '#E53E3E',
+                  fontSize: 12, fontWeight: 800,
+                  padding: '3px 10px', borderRadius: 4,
+                  letterSpacing: 1, fontFamily: 'monospace',
+                }}>
+                  {c.code}
+                </span>
+                {!isExpiredCoupon && <CouponCopyButton code={c.code} />}
+              </div>
+            ) : isRedeemed && c.code ? (
+              // Claimed from available list
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ background: '#FFF5F5', color: '#E53E3E', fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace' }}>
+                  {c.code}
+                </span>
+                <CouponCopyButton code={c.code} />
+              </div>
+            ) : (
+              // Not yet claimed — show redeem button
+              <button
+                onClick={() => handleRedeem(c)}
+                disabled={redeeming === c.id || !canAfford}
+                style={{
+                  padding: '6px 16px', borderRadius: 8, border: 'none',
+                  background: redeeming === c.id ? '#CBD5E0' : (canAfford ? '#E53E3E' : '#EDF2F7'),
+                  color: canAfford ? '#fff' : '#A0AEC0',
+                  fontSize: 12, fontWeight: 700, cursor: canAfford ? 'pointer' : 'not-allowed',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                }}
+              >
+                {redeeming === c.id ? 'กำลังแลก...' : (canAfford ? `แลก ${c.points_cost > 0 ? `${c.points_cost} แต้ม` : 'ฟรี'}` : `แต้มไม่พอ (มี ${member.points})`)}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: '20px 16px 0' }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1A202C', margin: 0 }}>รางวัลของฉัน</h2>
-          <button style={{
-            background: '#E53E3E', color: '#fff', border: 'none',
-            borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600,
-            cursor: 'pointer',
-          }}>
-            แลกรางวัล
-          </button>
+          <div style={{ fontSize: 13, color: '#D97706', fontWeight: 700 }}>⭐ {member.points.toLocaleString()} แต้ม</div>
         </div>
+        <div style={{ fontSize: 12, color: '#A0AEC0', marginBottom: 16 }}>แลกแต้มเพื่อรับคูปองส่วนลด</div>
+
+        {redeemError && (
+          <div style={{ background: '#FFF5F5', border: '1px solid #FED7D7', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#E53E3E' }}>
+            {redeemError}
+          </div>
+        )}
 
         {/* Inner tabs */}
-        <div style={{
-          display: 'flex', background: '#F3F4F6', borderRadius: 10,
-          padding: 4,
-        }}>
+        <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: 10, padding: 4, marginBottom: 16 }}>
           {[
-            { key: 'available', label: 'คูปองที่ใช้ได้' },
-            { key: 'used', label: 'ใช้แล้ว หรือหมดอายุ' },
+            { key: 'available', label: 'คูปองที่แลกได้' },
+            { key: 'claimed', label: `คูปองของฉัน${myCoupons.length > 0 ? ` (${myCoupons.length})` : ''}` },
           ].map((t) => (
             <button
               key={t.key}
-              onClick={() => setInnerTab(t.key as 'available' | 'used')}
+              onClick={() => setInnerTab(t.key as 'available' | 'claimed')}
               style={{
                 flex: 1, padding: '8px 4px', border: 'none', cursor: 'pointer',
                 borderRadius: 8, fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
@@ -757,18 +957,29 @@ function TabRewards() {
           ))}
         </div>
 
-        {/* Empty state */}
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div style={{ marginBottom: 16, opacity: 0.3 }}>
-            <IconTicket color="#E53E3E" />
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#A0AEC0', fontSize: 14 }}>กำลังโหลด...</div>
+        ) : list.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <div style={{ marginBottom: 16, opacity: 0.3 }}><IconTicket color="#E53E3E" /></div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#4A5568', marginBottom: 8 }}>
+              {innerTab === 'available' ? 'ยังไม่มีคูปองให้แลกในขณะนี้' : 'ยังไม่มีคูปองของฉัน'}
+            </div>
+            <div style={{ fontSize: 13, color: '#A0AEC0', lineHeight: 1.6 }}>
+              {innerTab === 'available' ? 'ติดตามโปรโมชันจากทางร้านได้เร็วๆ นี้' : 'แลกคูปองจากแท็บ "คูปองที่แลกได้"'}
+            </div>
           </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#4A5568', marginBottom: 8 }}>
-            ยังไม่มีคูปองในขณะนี้
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {list.map(c => <CouponCard key={c.id} c={c} isMine={innerTab === 'claimed'} />)}
           </div>
-          <div style={{ fontSize: 13, color: '#A0AEC0', lineHeight: 1.6 }}>
-            สะสมคะแนนจากการใช้บริการ<br />เพื่อรับสิทธิพิเศษและคูปองส่วนลด
+        )}
+
+        {!loading && innerTab === 'claimed' && myCoupons.some(c => new Date(c.expires_at).getTime() > Date.now()) && (
+          <div style={{ marginTop: 16, padding: '10px 14px', background: '#FFF5F5', borderRadius: 8, fontSize: 12, color: '#718096', lineHeight: 1.6 }}>
+            💡 คัดลอกรหัสคูปองแล้วแจ้งพนักงานก่อนชำระเงิน
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -1252,7 +1463,7 @@ export default function MemberPage() {
     }}>
       {activeTab === 'home' && <TabHome member={member} onRefresh={handleRefresh} onScan={() => setShowScanModal(true)} />}
       {activeTab === 'card' && <TabMemberCard member={member} history={history} onScan={() => setShowScanModal(true)} />}
-      {activeTab === 'rewards' && <TabRewards />}
+      {activeTab === 'rewards' && <TabRewards member={member} onPointsUpdate={(pts) => setMember(m => m ? { ...m, points: pts } : m)} />}
       {activeTab === 'profile' && <TabProfile member={member} onLogout={handleLogout} />}
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 

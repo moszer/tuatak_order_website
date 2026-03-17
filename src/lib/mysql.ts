@@ -235,6 +235,48 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    // Create coupons table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS coupons (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(50) UNIQUE NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        discount_type ENUM('percent', 'fixed') NOT NULL DEFAULT 'fixed',
+        discount_value DECIMAL(10, 2) NOT NULL DEFAULT 0,
+        min_order DECIMAL(10, 2) NOT NULL DEFAULT 0,
+        points_cost INT NOT NULL DEFAULT 0,
+        expires_at DATETIME NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        max_uses INT NOT NULL DEFAULT 0,
+        used_count INT NOT NULL DEFAULT 0,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_code (code),
+        INDEX idx_is_active (is_active),
+        INDEX idx_expires_at (expires_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Add points_cost column if not exists (for existing tables)
+    await connection.query(`
+      ALTER TABLE coupons ADD COLUMN IF NOT EXISTS points_cost INT NOT NULL DEFAULT 0
+    `).catch(() => {});
+
+    // Create member_coupons table (tracks which member claimed which coupon)
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS member_coupons (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        member_id INT NOT NULL,
+        coupon_id INT NOT NULL,
+        points_spent INT NOT NULL DEFAULT 0,
+        claimed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_member_coupon (member_id, coupon_id),
+        INDEX idx_member_id (member_id),
+        INDEX idx_coupon_id (coupon_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     // Insert default admin user if users table is empty (password: admin123)
     const [existingUsers] = await connection.query('SELECT COUNT(*) as count FROM users') as any;
     if (existingUsers[0].count === 0) {

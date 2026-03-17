@@ -95,6 +95,46 @@ export default function Home() {
       }}>
         สแกน QR Code หรือเลือกโต๊ะเพื่อเริ่มสั่งอาหาร
       </p>
+
+      {/* Quick links */}
+      <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <Link
+          href="/member"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            background: 'rgba(245,158,11,0.12)',
+            border: '1px solid rgba(245,158,11,0.3)',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            color: '#f59e0b',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+          }}
+        >
+          🎟️ คูปองส่วนลด
+        </Link>
+        <Link
+          href="/loyalty"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            color: '#94a3b8',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+          }}
+        >
+          ⭐ สะสมแต้ม
+        </Link>
+      </div>
     </div>
   );
 }
