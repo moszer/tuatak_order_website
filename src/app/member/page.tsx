@@ -884,25 +884,25 @@ function CouponQrModal({ couponId, couponTitle, discountType, discountValue, onC
 }) {
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [error, setError] = useState('');
-  const [checking, setChecking] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const tokenRef = useRef('');
+  const onUsedRef = useRef(onUsed);
+  // Keep ref up-to-date without it being an effect dependency
+  onUsedRef.current = onUsed;
 
   useEffect(() => {
     fetch(`/api/coupons/mine/qr?couponId=${couponId}`)
       .then(r => r.json())
       .then(async data => {
         if (data.qrToken) {
-          tokenRef.current = data.qrToken;
           const QRCode = (await import('qrcode')).default;
           const url = await QRCode.toDataURL(data.qrToken, { width: 240, margin: 1, color: { dark: '#1a1a1a', light: '#ffffff' } });
           setQrDataUrl(url);
-          // Poll to check if coupon was used
+          // Poll every 3s to detect when admin scans the coupon
           pollRef.current = setInterval(async () => {
             const r = await fetch('/api/coupons/mine').then(x => x.json()).catch(() => null);
             if (r?.coupons) {
               const stillExists = r.coupons.some((c: any) => c.id === couponId);
-              if (!stillExists) { clearInterval(pollRef.current!); onUsed(); }
+              if (!stillExists) { clearInterval(pollRef.current!); onUsedRef.current(); }
             }
           }, 3000);
         } else {
@@ -911,7 +911,8 @@ function CouponQrModal({ couponId, couponTitle, discountType, discountValue, onC
       })
       .catch(() => setError('ไม่สามารถโหลด QR ได้'));
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [couponId, onUsed]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [couponId]); // onUsed intentionally excluded — stored in ref to avoid modal restart
 
   const discountLabel = discountType === 'percent' ? `ลด ${discountValue}%` : `ลด ฿${discountValue.toLocaleString()}`;
 
