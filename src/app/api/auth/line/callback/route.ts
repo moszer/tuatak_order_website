@@ -93,14 +93,23 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    // First-time LINE user — redirect to phone registration
-    const params = new URLSearchParams({
-      line_setup: '1',
-      line_uid: lineUid,
-      line_name: lineName || '',
-      line_pic: linePic || '',
-    });
-    return NextResponse.redirect(new URL(`/member?${params}`, request.url));
+    // First-time LINE user — create account immediately, profile will be completed on /member
+    const memberNumber = generateMemberNumber();
+    const validTill = getValidTill();
+    await pool.execute(
+      `INSERT INTO members (phone, name, memberNumber, validTill, lineUid, linePictureUrl)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [null, lineName || 'LINE User', memberNumber, validTill, lineUid, linePic || null]
+    );
+    const [newRows] = await pool.execute(
+      'SELECT * FROM members WHERE lineUid = ?',
+      [lineUid]
+    ) as any;
+    const newMember = (newRows as any[])[0];
+    const token = signMemberToken({ memberId: newMember.id, phone: '', name: newMember.name });
+    const response = NextResponse.redirect(new URL('/member', request.url));
+    response.headers.set('Set-Cookie', setMemberCookieHeader(token));
+    return response;
   } catch (err) {
     console.error('LINE callback error:', err);
     return NextResponse.redirect(new URL('/member?error=line_error', request.url));

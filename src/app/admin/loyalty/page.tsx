@@ -17,16 +17,23 @@ interface QRCodeItem {
 
 interface Member {
   id: number;
-  phone: string;
+  phone: string | null;
   name: string;
   email: string | null;
   points: number;
-  tier: 'bronze' | 'silver' | 'gold';
+  tier: 'bronze' | 'silver' | 'gold' | 'member' | 'platinum';
+  memberNumber: string | null;
+  validTill: string | null;
+  totalVisits: number;
+  address: string | null;
+  gender: 'male' | 'female' | 'other' | null;
+  lineUid: string | null;
+  linePictureUrl: string | null;
   createdAt: string;
 }
 
-const TIER_COLORS = { bronze: '#cd7f32', silver: '#94a3b8', gold: '#fbbf24' };
-const TIER_EMOJI = { bronze: '🥉', silver: '🥈', gold: '🥇' };
+const TIER_COLORS: Record<string, string> = { bronze: '#cd7f32', silver: '#94a3b8', gold: '#fbbf24', member: '#64748b', platinum: '#e2e8f0' };
+const TIER_EMOJI: Record<string, string> = { bronze: '🥉', silver: '🥈', gold: '🥇', member: '👤', platinum: '💎' };
 
 const BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -38,6 +45,7 @@ export default function AdminLoyaltyPage() {
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [memberSearch, setMemberSearch] = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Generate form
   const [genLabel, setGenLabel] = useState('');
@@ -50,6 +58,16 @@ export default function AdminLoyaltyPage() {
   // Preview QR modal
   const [previewQr, setPreviewQr] = useState<QRCodeItem | null>(null);
   const [previewDataUrl, setPreviewDataUrl] = useState('');
+
+  // Member detail modal
+  const [detailMember, setDetailMember] = useState<Member | null>(null);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const loadQrCodes = useCallback(async () => {
     setLoadingQr(true);
@@ -84,7 +102,6 @@ export default function AdminLoyaltyPage() {
       if (res.ok) {
         await loadQrCodes();
         setGenLabel('');
-        // Auto-open preview
         openPreview(data.qrCode);
       } else {
         setGenError(data.error || 'เกิดข้อผิดพลาด');
@@ -176,7 +193,12 @@ export default function AdminLoyaltyPage() {
 
       {/* QR Tab */}
       {activeTab === 'qr' && (
-        <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', alignItems: 'start' }}>
+        <div style={{
+          display: 'grid',
+          gap: '24px',
+          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)',
+          alignItems: 'start',
+        }}>
 
           {/* Generate form */}
           <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '12px', padding: '20px', animation: 'fadeUp 0.3s ease' }}>
@@ -241,7 +263,7 @@ export default function AdminLoyaltyPage() {
                 ยังไม่มี QR Code
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '520px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: isMobile ? 'none' : '520px', overflowY: isMobile ? 'visible' : 'auto' }}>
                 {qrCodes.map(qr => {
                   const expired = isExpired(qr.expires_at);
                   const statusColor = !qr.is_active ? '#475569' : expired ? '#f87171' : '#4ade80';
@@ -262,7 +284,7 @@ export default function AdminLoyaltyPage() {
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: isMobile ? 'wrap' : 'nowrap', justifyContent: 'flex-end' }}>
                           <button
                             onClick={() => openPreview(qr)}
                             title="ดู QR"
@@ -307,7 +329,7 @@ export default function AdminLoyaltyPage() {
                 placeholder="ค้นหาชื่อ หรือ เบอร์โทร..."
                 value={memberSearch}
                 onChange={e => setMemberSearch(e.target.value)}
-                style={{ maxWidth: '320px' }}
+                style={{ maxWidth: isMobile ? '100%' : '320px' }}
               />
             </div>
           )}
@@ -321,57 +343,187 @@ export default function AdminLoyaltyPage() {
           ) : (() => {
             const filtered = members.filter(m =>
               m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
-              m.phone.includes(memberSearch)
+              (m.phone || '').includes(memberSearch) ||
+              (m.memberNumber || '').includes(memberSearch)
             );
             return (
-              <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '12px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #1a2332' }}>
-                      {['ชื่อ', 'เบอร์โทร', 'แต้ม', 'ระดับ', 'สมัครวันที่', ''].map(h => (
-                        <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#475569', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#475569' }}>ไม่พบสมาชิก</td>
-                      </tr>
-                    ) : filtered.map((m, i) => (
-                      <tr key={m.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #0d1117' : 'none' }}>
-                        <td style={{ padding: '13px 16px', color: '#f1f5f9', fontWeight: 500 }}>{m.name}</td>
-                        <td style={{ padding: '13px 16px', color: '#64748b' }}>{m.phone}</td>
-                        <td style={{ padding: '13px 16px', color: '#fbbf24', fontWeight: 700 }}>{m.points.toLocaleString()}</td>
-                        <td style={{ padding: '13px 16px' }}>
-                          <span style={{ color: TIER_COLORS[m.tier], fontSize: '0.82rem', fontWeight: 600 }}>
-                            {TIER_EMOJI[m.tier]} {m.tier.charAt(0).toUpperCase() + m.tier.slice(1)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '13px 16px', color: '#475569', fontSize: '0.8rem' }}>
-                          {new Date(m.createdAt).toLocaleDateString('th-TH')}
-                        </td>
-                        <td style={{ padding: '13px 16px' }}>
-                          <button
-                            onClick={() => deleteMember(m)}
-                            disabled={deletingId === m.id}
-                            style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: deletingId === m.id ? '#475569' : '#f87171', fontSize: '0.78rem', cursor: deletingId === m.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-                          >
-                            {deletingId === m.id ? '...' : 'ลบ'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {memberSearch && (
-                  <div style={{ padding: '10px 16px', borderTop: '1px solid #1a2332', color: '#475569', fontSize: '0.78rem' }}>
-                    แสดง {filtered.length} จาก {members.length} สมาชิก
+              <>
+                {/* Desktop: table */}
+                {!isMobile && (
+                  <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '12px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #1a2332' }}>
+                          {['ชื่อ', 'เบอร์โทร', 'แต้ม', 'ระดับ', 'สมัครวันที่', 'ครั้ง', ''].map(h => (
+                            <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: '#475569', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#475569' }}>ไม่พบสมาชิก</td>
+                          </tr>
+                        ) : filtered.map((m, i) => (
+                          <tr key={m.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid #0d1117' : 'none' }}>
+                            <td style={{ padding: '13px 16px', color: '#f1f5f9', fontWeight: 500 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {m.linePictureUrl && <img src={m.linePictureUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />}
+                                <span>{m.name}</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '13px 16px', color: '#64748b' }}>{m.phone || '-'}</td>
+                            <td style={{ padding: '13px 16px', color: '#fbbf24', fontWeight: 700 }}>{m.points.toLocaleString()}</td>
+                            <td style={{ padding: '13px 16px' }}>
+                              <span style={{ color: TIER_COLORS[m.tier] || '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
+                                {TIER_EMOJI[m.tier] || '👤'} {m.tier.charAt(0).toUpperCase() + m.tier.slice(1)}
+                              </span>
+                            </td>
+                            <td style={{ padding: '13px 16px', color: '#475569', fontSize: '0.8rem' }}>
+                              {new Date(m.createdAt).toLocaleDateString('th-TH')}
+                            </td>
+                            <td style={{ padding: '13px 16px', color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center' }}>
+                              {m.totalVisits}
+                            </td>
+                            <td style={{ padding: '13px 16px' }}>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                  onClick={() => setDetailMember(m)}
+                                  style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid #1e293b', background: 'transparent', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                                >
+                                  ดูข้อมูล
+                                </button>
+                                <button
+                                  onClick={() => deleteMember(m)}
+                                  disabled={deletingId === m.id}
+                                  style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: deletingId === m.id ? '#475569' : '#f87171', fontSize: '0.78rem', cursor: deletingId === m.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                                >
+                                  {deletingId === m.id ? '...' : 'ลบ'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {memberSearch && (
+                      <div style={{ padding: '10px 16px', borderTop: '1px solid #1a2332', color: '#475569', fontSize: '0.78rem' }}>
+                        แสดง {filtered.length} จาก {members.length} สมาชิก
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+
+                {/* Mobile: cards */}
+                {isMobile && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {filtered.length === 0 ? (
+                      <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '12px', padding: '32px', textAlign: 'center', color: '#475569' }}>
+                        ไม่พบสมาชิก
+                      </div>
+                    ) : filtered.map(m => (
+                      <div key={m.id} style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '10px', padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                              {m.linePictureUrl && <img src={m.linePictureUrl} alt="" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />}
+                              <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '0.9rem' }}>{m.name}</span>
+                              <span style={{ color: TIER_COLORS[m.tier] || '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
+                                {TIER_EMOJI[m.tier] || '👤'} {m.tier.charAt(0).toUpperCase() + m.tier.slice(1)}
+                              </span>
+                            </div>
+                            <div style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '2px' }}>{m.phone || '-'}</div>
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                              <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.875rem' }}>⭐ {m.points.toLocaleString()} แต้ม</span>
+                              <span style={{ color: '#334155', fontSize: '0.72rem' }}>
+                                มาแล้ว {m.totalVisits} ครั้ง
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                            <button
+                              onClick={() => setDetailMember(m)}
+                              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid #1e293b', background: 'transparent', color: '#94a3b8', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}
+                            >
+                              ดูข้อมูล
+                            </button>
+                            <button
+                              onClick={() => deleteMember(m)}
+                              disabled={deletingId === m.id}
+                              style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: deletingId === m.id ? '#475569' : '#f87171', fontSize: '0.78rem', cursor: deletingId === m.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
+                            >
+                              {deletingId === m.id ? '...' : 'ลบ'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {memberSearch && (
+                      <div style={{ color: '#475569', fontSize: '0.78rem', textAlign: 'center', padding: '8px 0' }}>
+                        แสดง {filtered.length} จาก {members.length} สมาชิก
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             );
           })()}
+        </div>
+      )}
+
+      {/* Member Detail Modal */}
+      {detailMember && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}
+          onClick={() => setDetailMember(null)}
+        >
+          <div
+            style={{ background: '#0d1117', borderRadius: '16px', padding: '28px 24px', maxWidth: '420px', width: '100%', border: '1px solid #1e293b', animation: 'fadeUp 0.2s ease', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+              {detailMember.linePictureUrl ? (
+                <img src={detailMember.linePictureUrl} alt="" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #1e293b', flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#f1f5f9', flexShrink: 0 }}>
+                  {detailMember.name[0]?.toUpperCase()}
+                </div>
+              )}
+              <div>
+                <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: '1.05rem' }}>{detailMember.name}</div>
+                <div style={{ color: TIER_COLORS[detailMember.tier] || '#64748b', fontSize: '0.8rem', fontWeight: 600, marginTop: 2 }}>
+                  {TIER_EMOJI[detailMember.tier] || '👤'} {detailMember.tier.charAt(0).toUpperCase() + detailMember.tier.slice(1)}
+                </div>
+              </div>
+            </div>
+
+            {/* Info rows */}
+            {[
+              { label: '📱 เบอร์โทร', value: detailMember.phone || '-' },
+              { label: '✉️ อีเมล', value: detailMember.email || '-' },
+              { label: '🧬 เพศ', value: detailMember.gender === 'male' ? 'ชาย' : detailMember.gender === 'female' ? 'หญิง' : detailMember.gender === 'other' ? 'อื่นๆ' : '-' },
+              { label: '🏠 ที่อยู่', value: detailMember.address || '-' },
+              { label: '🎫 เลขบัตร', value: detailMember.memberNumber || '-' },
+              { label: '📅 หมดอายุ', value: detailMember.validTill ? new Date(detailMember.validTill).toLocaleDateString('th-TH') : '-' },
+              { label: '⭐ คะแนน', value: `${detailMember.points.toLocaleString()} แต้ม` },
+              { label: '🍲 มาทั้งหมด', value: `${detailMember.totalVisits} ครั้ง` },
+              { label: '📆 สมัครวันที่', value: new Date(detailMember.createdAt).toLocaleDateString('th-TH') },
+              { label: '🔗 LINE UID', value: detailMember.lineUid || '-' },
+            ].map(row => (
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '9px 0', borderBottom: '1px solid #1a2332', gap: 12 }}>
+                <span style={{ color: '#475569', fontSize: '0.82rem', minWidth: 110, flexShrink: 0 }}>{row.label}</span>
+                <span style={{ color: '#f1f5f9', fontSize: '0.85rem', fontWeight: 500, textAlign: 'right', lineHeight: 1.5 }}>{row.value}</span>
+              </div>
+            ))}
+
+            <button
+              onClick={() => setDetailMember(null)}
+              style={{ width: '100%', marginTop: 20, padding: '10px', borderRadius: '8px', border: '1px solid #1e293b', background: 'transparent', color: '#64748b', fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              ปิด
+            </button>
+          </div>
         </div>
       )}
 

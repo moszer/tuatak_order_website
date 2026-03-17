@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { Order } from '@/lib/mysql';
 import Swal from 'sweetalert2';
+import QRCode from 'qrcode';
+import ReceiptContent, { ReceiptData } from '@/app/admin/components/ReceiptContent';
 
 interface OrderWithId extends Order {
   _id: string;
@@ -18,6 +20,7 @@ interface OrderWithId extends Order {
   } | null;
 }
 
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithId[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -29,6 +32,7 @@ export default function OrdersPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [tableBills, setTableBills] = useState<Record<string, any>>({});
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousOrderIdsRef = useRef<Set<string>>(new Set());
 
@@ -270,7 +274,40 @@ export default function OrdersPage() {
     }
   };
 
-  const handleCheckBill = async (tableNumber: string, grandTotal: number, billTotal: number, foodTotal: number) => {
+  const handleCheckBill = async (tableNumber: string, grandTotal: number, billTotal: number, foodTotal: number, personCount: number) => {
+    // ── Step 1: QR loyalty settings ──────────────────────────────────────────
+    const qrStep = await Swal.fire({
+      title: `⭐ สะสมแต้ม — โต๊ะ ${tableNumber}`,
+      html: `
+        <div style="text-align:left; font-size:0.9rem; color:#d1d5db; line-height:2;">
+          <div style="margin-bottom:12px; color:#9ca3af;">
+            จะสร้าง QR Code ให้ลูกค้าสแกนสะสมแต้ม<br/>
+            <b style="color:#fbbf24;">ใช้ได้คนละ 1 ครั้ง · ${personCount > 0 ? `จำกัด ${personCount} คน (ตามจำนวนในบิล)` : 'ไม่จำกัดจำนวน'}</b>
+          </div>
+          <label style="display:block; font-size:0.78rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">จำนวนแต้ม</label>
+          <input id="swal-pts" type="number" min="1" max="9999" value="10"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid #374151;background:#111827;color:#f9fafb;font-size:1rem;box-sizing:border-box;margin-bottom:14px;" />
+          <label style="display:block; font-size:0.78rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">หมดอายุ (ชั่วโมง)</label>
+          <input id="swal-hrs" type="number" min="1" max="72" value="2"
+            style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid #374151;background:#111827;color:#f9fafb;font-size:1rem;box-sizing:border-box;" />
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'สร้าง QR →',
+      cancelButtonText: 'ข้าม',
+      confirmButtonColor: '#f59e0b',
+      cancelButtonColor: '#374151',
+      reverseButtons: true,
+      preConfirm: () => {
+        const pts = parseInt((document.getElementById('swal-pts') as HTMLInputElement).value);
+        const hrs = parseFloat((document.getElementById('swal-hrs') as HTMLInputElement).value);
+        if (!pts || pts < 1) { Swal.showValidationMessage('กรุณาใส่จำนวนแต้มที่ถูกต้อง'); return false; }
+        if (!hrs || hrs < 0.1) { Swal.showValidationMessage('กรุณาใส่ชั่วโมงที่ถูกต้อง'); return false; }
+        return { pts, hrs };
+      },
+    });
+
+    // ── Step 2: Confirm bill ──────────────────────────────────────────────────
     const result = await Swal.fire({
       icon: 'question',
       title: 'สรุปบิลโต๊ะ ' + tableNumber,
@@ -293,60 +330,119 @@ export default function OrdersPage() {
       reverseButtons: true,
     });
 
-    if (result.isConfirmed) {
-      try {
-        const deletePromises = orders
-          .filter(order => order.tableNumber === tableNumber)
-          .map(order => fetch(`/api/orders/${order._id}`, { method: 'DELETE' }));
-        await Promise.all(deletePromises);
+    if (!result.isConfirmed) return;
 
-        await fetch('/api/cashflow', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tableNumber,
-            foodRevenue: foodTotal,
-            buffetRevenue: billTotal,
-            totalRevenue: grandTotal,
-            ordersCount: orders.filter(order => order.tableNumber === tableNumber).length,
-            paymentMethod: 'cash',
-            notes: `เช็คบิลโต๊ะ ${tableNumber}`,
-          }),
-        });
+    // ── Step 3: Process bill + generate QR ───────────────────────────────────
+    try {
+      // Capture data BEFORE deleting
+      const tableOrdersBefore = orders.filter(o => o.tableNumber === tableNumber);
+      const tableBillBefore = tableBills[tableNumber] || null;
+      const paidAt = new Date();
 
-        await fetch(`/api/tables/bill?table=${tableNumber}`, { method: 'DELETE' });
-
-        await fetch('/api/tables/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tableNumber, isReady: false }),
-        });
-
-        await fetchOrders();
-
-        await Swal.fire({
-          icon: 'success',
-          title: 'เช็คบิลเสร็จสิ้น!',
-          html: `
-            <div style="text-align: center; font-size: 1rem; line-height: 1.8;">
-              <div style="font-size: 1.2rem; font-weight: 600; color: #10b981; margin-bottom: 10px;">
-                รวมทั้งหมด: ฿${grandTotal.toLocaleString()}
-              </div>
-              <div>โต๊ะ ${tableNumber} ถูกปิดแล้ว</div>
-              <div>คำสั่งซื้อทั้งหมดถูกลบแล้ว</div>
-            </div>
-          `,
-          confirmButtonColor: '#10b981',
-          confirmButtonText: 'ตกลง',
-        });
-      } catch (error) {
-        console.error('Error checking bill:', error);
-        await Swal.fire({
-          icon: 'error', title: 'เกิดข้อผิดพลาด',
-          text: 'เกิดข้อผิดพลาดในการเช็คบิล: ' + (error instanceof Error ? error.message : 'Unknown error'),
-          confirmButtonColor: '#ef4444',
-        });
+      // Aggregate items across all orders
+      const itemMap = new Map<number, { id: number; nameTh: string; name: string; price: number; quantity: number }>();
+      for (const order of tableOrdersBefore) {
+        for (const item of order.items) {
+          if (itemMap.has(item.id)) {
+            itemMap.get(item.id)!.quantity += item.quantity;
+          } else {
+            itemMap.set(item.id, { id: item.id, nameTh: item.nameTh, name: item.name, price: item.price, quantity: item.quantity });
+          }
+        }
       }
+      const aggregatedItems = Array.from(itemMap.values());
+
+      const deletePromises = tableOrdersBefore.map(order => fetch(`/api/orders/${order._id}`, { method: 'DELETE' }));
+      await Promise.all(deletePromises);
+
+      await fetch('/api/cashflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableNumber,
+          foodRevenue: foodTotal,
+          buffetRevenue: billTotal,
+          totalRevenue: grandTotal,
+          ordersCount: tableOrdersBefore.length,
+          paymentMethod: 'cash',
+          notes: `เช็คบิลโต๊ะ ${tableNumber}`,
+        }),
+      });
+
+      await fetch(`/api/tables/bill?table=${tableNumber}`, { method: 'DELETE' });
+
+      await fetch('/api/tables/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableNumber, isReady: false }),
+      });
+
+      await fetchOrders();
+
+      // Generate loyalty QR if admin chose to
+      let qrDataUrl = '';
+      let qrCodeStr = '';
+      let qrPoints = 0;
+      let qrMaxUses = 0;
+      let qrHours = 0;
+      if (qrStep.isConfirmed && qrStep.value) {
+        const { pts, hrs } = qrStep.value;
+        qrPoints = pts; qrHours = hrs; qrMaxUses = personCount;
+        try {
+          const qrRes = await fetch('/api/loyalty/qr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              points_value: pts,
+              label: `โต๊ะ ${tableNumber} — เช็คบิล ฿${grandTotal.toLocaleString()}`,
+              expires_hours: hrs,
+              max_uses: personCount > 0 ? personCount : 0,
+            }),
+          });
+          const qrData = await qrRes.json();
+          if (qrRes.ok && qrData.qrCode) {
+            qrCodeStr = qrData.qrCode.code;
+            const scanUrl = `${window.location.origin}/loyalty/scan?code=${qrCodeStr}`;
+            qrDataUrl = await QRCode.toDataURL(scanUrl, {
+              width: 260, margin: 2,
+              color: { dark: '#000000', light: '#ffffff' },
+            });
+          }
+        } catch (qrErr) {
+          console.error('QR generation failed:', qrErr);
+        }
+      }
+
+      const receipt: ReceiptData = {
+        tableNumber, paidAt, aggregatedItems,
+        bill: tableBillBefore,
+        foodTotal, billTotal, grandTotal,
+        qrDataUrl, qrCode: qrCodeStr || undefined,
+        qrPoints, qrMaxUses, qrHours,
+      };
+
+      // Save receipt log to DB (fire-and-forget)
+      fetch('/api/receipts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableNumber, paidAt: paidAt.toISOString(),
+          items: aggregatedItems,
+          bill: tableBillBefore,
+          foodTotal, billTotal, grandTotal,
+          qrCode: qrCodeStr || null,
+          qrPoints, qrMaxUses, qrHours,
+        }),
+      }).catch(() => {});
+
+      setReceiptData(receipt);
+    } catch (error) {
+      console.error('Error checking bill:', error);
+      await Swal.fire({
+        icon: 'error', title: 'เกิดข้อผิดพลาด',
+        text: 'เกิดข้อผิดพลาดในการเช็คบิล: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        confirmButtonColor: '#ef4444',
+      });
     }
   };
 
@@ -695,6 +791,7 @@ export default function OrdersPage() {
             const billTotal = tableBill ? (tableBill.totalPrice || calculateExpectedBillTotal(tableBill)) : 0;
             const tableGrandTotal = foodTotal + billTotal;
             const manual = tableBill ? isManualTotal(tableBill) : false;
+            const personCount = tableBill ? (tableBill.adultCount || 0) + (tableBill.child120Count || 0) + (tableBill.child100Count || 0) : 0;
 
             return (
               <div key={tableNum} className="ord-card" style={{ padding: 20 }}>
@@ -803,7 +900,7 @@ export default function OrdersPage() {
 
                     {/* Check Bill button */}
                     <button
-                      onClick={() => handleCheckBill(tableNum, tableGrandTotal, billTotal, foodTotal)}
+                      onClick={() => handleCheckBill(tableNum, tableGrandTotal, billTotal, foodTotal, personCount)}
                       style={{
                         width: '100%',
                         background: '#10b981',
@@ -1136,6 +1233,52 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
+      {/* ─── Receipt Modal ─────────────────────────────────────────────────── */}
+      {receiptData && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16 }}
+          onClick={() => setReceiptData(null)}
+        >
+          <style>{`
+            @media print {
+              body > * { display: none !important; }
+              #receipt-print-area { display: block !important; position: fixed; inset: 0; background: #fff; }
+            }
+            #receipt-print-area { display: none; }
+          `}</style>
+
+          {/* Print-only area */}
+          <div id="receipt-print-area">
+            <ReceiptContent data={receiptData} />
+          </div>
+
+          {/* Screen modal */}
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 400, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}
+          >
+            <ReceiptContent data={receiptData} />
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 10, padding: '0 20px 20px', background: '#fff' }}>
+              <button
+                onClick={() => window.print()}
+                style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: '#111827', color: '#f9fafb', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                พิมพ์ใบเสร็จ
+              </button>
+              <button
+                onClick={() => setReceiptData(null)}
+                style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid #e5e7eb', background: 'transparent', color: '#6b7280', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                ปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

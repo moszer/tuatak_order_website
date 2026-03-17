@@ -28,6 +28,14 @@ function generateCode() {
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Form state
   const [form, setForm] = useState({
@@ -119,7 +127,7 @@ export default function AdminCouponsPage() {
         <p style={{ color: '#475569', fontSize: '0.82rem', margin: '4px 0 0' }}>สร้างและจัดการคูปองส่วนลดสำหรับลูกค้า</p>
       </div>
 
-      <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.5fr)', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1.5fr)', alignItems: 'start' }}>
 
         {/* Create Form */}
         <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: '12px', padding: '20px', animation: 'fadeUp 0.3s ease' }}>
@@ -290,7 +298,7 @@ export default function AdminCouponsPage() {
               ยังไม่มีคูปอง
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '600px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: isMobile ? 'none' : '600px', overflowY: isMobile ? 'visible' : 'auto' }}>
               {coupons.map(c => {
                 const expired = isExpired(c.expires_at);
                 const maxed = c.max_uses > 0 && c.used_count >= c.max_uses;
@@ -319,7 +327,7 @@ export default function AdminCouponsPage() {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: isMobile ? 'wrap' : 'nowrap', justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => toggleActive(c)}
                           style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #1e293b', background: 'transparent', color: c.is_active ? '#f59e0b' : '#475569', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}

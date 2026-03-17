@@ -17,6 +17,8 @@ interface Member {
   profileImage?: string;
   lineUid?: string;
   linePictureUrl?: string;
+  address?: string;
+  gender?: 'male' | 'female' | 'other';
   createdAt: string;
 }
 
@@ -171,14 +173,15 @@ function MemberCard({ member }: { member: Member }) {
   return (
     <div
       style={{
-        background: 'linear-gradient(135deg,#C53030,#E53E3E)',
+        background: 'linear-gradient(135deg,#c44a1a,#FF6B4A)',
         borderRadius: 16,
         padding: '20px 20px 20px 20px',
         color: '#fff',
         position: 'relative',
         overflow: 'hidden',
         minHeight: 180,
-        boxShadow: '0 4px 20px rgba(197,48,48,0.4)',
+        boxShadow: '0 4px 20px rgba(255,107,74,0.4)',
+        animation: 'mem-float 5s ease-in-out infinite, mem-pulse-glow 3s ease-in-out infinite',
       }}
     >
       {/* Decorative circles */}
@@ -353,15 +356,15 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const handleClose = () => { stopCamera(); onClose(); };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', flexDirection: 'column', background: '#fff' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', flexDirection: 'column', background: '#3D352E', animation: 'mem-fadeIn 0.25s ease' }}>
       <style>{`@keyframes scanLine{0%{top:12%}50%{top:83%}100%{top:12%}} @keyframes spin2{to{transform:rotate(360deg)}}`}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #E2E8F0', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.12)', flexShrink: 0 }}>
         <button onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#718096" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b5a99d" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <span style={{ fontWeight: 700, fontSize: 17, color: '#1A202C' }}>สแกน QR Code</span>
+        <span style={{ fontWeight: 700, fontSize: 17, color: '#ffffff' }}>สแกน QR Code</span>
       </div>
 
       {/* Body */}
@@ -371,11 +374,11 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         {scanState === 'success' && (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 72, marginBottom: 12 }}>🎉</div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: '#38A169', marginBottom: 6 }}>+{pointsEarned} แต้ม!</div>
-            <div style={{ color: '#718096', marginBottom: 32 }}>สะสมแต้มสำเร็จ</div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#68D391', marginBottom: 6 }}>+{pointsEarned} แต้ม!</div>
+            <div style={{ color: '#b5a99d', marginBottom: 32 }}>สะสมแต้มสำเร็จ</div>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button onClick={reset} style={{ padding: '11px 22px', borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', color: '#718096', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>สแกนอีกครั้ง</button>
-              <button onClick={() => { onSuccess(pointsEarned); handleClose(); }} style={{ padding: '11px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#C53030,#E53E3E)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>ตกลง</button>
+              <button onClick={reset} style={{ padding: '11px 22px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.12)', background: '#3D352E', color: '#b5a99d', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>สแกนอีกครั้ง</button>
+              <button onClick={() => { onSuccess(pointsEarned); handleClose(); }} style={{ padding: '11px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#c44a1a,#FF6B4A)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>ตกลง</button>
             </div>
           </div>
         )}
@@ -384,17 +387,17 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         {scanState === 'error' && (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 56, marginBottom: 12 }}>❌</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#E53E3E', marginBottom: 8 }}>ไม่สำเร็จ</div>
-            <div style={{ color: '#718096', fontSize: 14, marginBottom: 32, lineHeight: 1.6 }}>{message}</div>
-            <button onClick={reset} style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#C53030,#E53E3E)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>ลองใหม่</button>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#FF6B4A', marginBottom: 8 }}>ไม่สำเร็จ</div>
+            <div style={{ color: '#b5a99d', fontSize: 14, marginBottom: 32, lineHeight: 1.6 }}>{message}</div>
+            <button onClick={reset} style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#c44a1a,#FF6B4A)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>ลองใหม่</button>
           </div>
         )}
 
         {/* Processing */}
         {scanState === 'processing' && (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 48, height: 48, border: '4px solid #FED7D7', borderTopColor: '#E53E3E', borderRadius: '50%', animation: 'spin2 0.8s linear infinite', margin: '0 auto 16px' }} />
-            <div style={{ color: '#718096' }}>กำลังประมวลผล...</div>
+            <div style={{ width: 48, height: 48, border: '4px solid rgba(255,107,74,0.2)', borderTopColor: '#FF6B4A', borderRadius: '50%', animation: 'spin2 0.8s linear infinite', margin: '0 auto 16px' }} />
+            <div style={{ color: '#b5a99d' }}>กำลังประมวลผล...</div>
           </div>
         )}
 
@@ -402,12 +405,12 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         {scanState === 'idle' && (
           <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>📷</div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: '#1A202C', marginBottom: 8 }}>พร้อมสแกน QR Code</div>
-            <div style={{ color: '#718096', fontSize: 13, marginBottom: 28 }}>กดปุ่มเปิดกล้อง หรืออัปโหลดรูป QR จาก Gallery</div>
-            <button onClick={startCamera} style={{ display: 'block', width: '100%', padding: '14px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#C53030,#E53E3E)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginBottom: 12, boxShadow: '0 4px 16px rgba(197,48,48,0.35)' }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#ffffff', marginBottom: 8 }}>พร้อมสแกน QR Code</div>
+            <div style={{ color: '#b5a99d', fontSize: 13, marginBottom: 28 }}>กดปุ่มเปิดกล้อง หรืออัปโหลดรูป QR จาก Gallery</div>
+            <button onClick={startCamera} style={{ display: 'block', width: '100%', padding: '14px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#c44a1a,#FF6B4A)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginBottom: 12, boxShadow: '0 4px 16px rgba(255,107,74,0.35)' }}>
               📷 เปิดกล้องสแกน
             </button>
-            <label style={{ display: 'block', width: '100%', padding: '13px', borderRadius: 12, border: '1.5px solid #E2E8F0', background: '#fff', color: '#718096', fontSize: 15, fontWeight: 600, cursor: 'pointer', textAlign: 'center', boxSizing: 'border-box' }}>
+            <label style={{ display: 'block', width: '100%', padding: '13px', borderRadius: 12, border: '1.5px solid rgba(255,255,255,0.12)', background: '#3D352E', color: '#b5a99d', fontSize: 15, fontWeight: 600, cursor: 'pointer', textAlign: 'center', boxSizing: 'border-box' }}>
               🖼️ อัปโหลดรูปจาก Gallery
               <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) scanFromFile(f); e.target.value = ''; }} />
             </label>
@@ -416,23 +419,23 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
         {/* Camera view */}
         <div style={{ width: '100%', maxWidth: 360, display: scanState === 'scanning' ? 'block' : 'none' }}>
-          <div style={{ color: '#718096', textAlign: 'center', marginBottom: 10, fontSize: 13 }}>{debugMsg || 'วาง QR Code ให้อยู่ในกรอบ'}</div>
+          <div style={{ color: '#b5a99d', textAlign: 'center', marginBottom: 10, fontSize: 13 }}>{debugMsg || 'วาง QR Code ให้อยู่ในกรอบ'}</div>
           <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', background: '#000', aspectRatio: '1', width: '100%' }}>
             <video ref={videoRef} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             {(['tl','tr','bl','br'] as const).map(pos => (
               <div key={pos} style={{ position: 'absolute', width: 40, height: 40,
                 top: pos[0]==='t'?'12%':'auto', bottom: pos[0]==='b'?'12%':'auto',
                 left: pos[1]==='l'?'12%':'auto', right: pos[1]==='r'?'12%':'auto',
-                borderTop: pos[0]==='t'?'3px solid #E53E3E':'none', borderBottom: pos[0]==='b'?'3px solid #E53E3E':'none',
-                borderLeft: pos[1]==='l'?'3px solid #E53E3E':'none', borderRight: pos[1]==='r'?'3px solid #E53E3E':'none',
+                borderTop: pos[0]==='t'?'3px solid #FF6B4A':'none', borderBottom: pos[0]==='b'?'3px solid #FF6B4A':'none',
+                borderLeft: pos[1]==='l'?'3px solid #FF6B4A':'none', borderRight: pos[1]==='r'?'3px solid #FF6B4A':'none',
                 borderRadius: pos==='tl'?'6px 0 0 0':pos==='tr'?'0 6px 0 0':pos==='bl'?'0 0 0 6px':'0 0 6px 0',
               }}/>
             ))}
-            <div style={{ position: 'absolute', left: '12%', right: '12%', height: 2, background: 'linear-gradient(90deg,transparent,#E53E3E,transparent)', animation: 'scanLine 2s ease-in-out infinite', boxShadow: '0 0 8px rgba(229,62,62,0.8)' }} />
+            <div style={{ position: 'absolute', left: '12%', right: '12%', height: 2, background: 'linear-gradient(90deg,transparent,#FF6B4A,transparent)', animation: 'scanLine 2s ease-in-out infinite', boxShadow: '0 0 8px rgba(255,107,74,0.8)' }} />
             <div style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 20% rgba(0,0,0,0.55)', pointerEvents: 'none' }} />
           </div>
           <canvas ref={canvasRef} style={{ display: 'none' }} />
-          <button onClick={reset} style={{ width: '100%', marginTop: 12, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', color: '#718096', fontSize: 14, cursor: 'pointer' }}>ยกเลิก</button>
+          <button onClick={reset} style={{ width: '100%', marginTop: 12, padding: 12, borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.12)', background: '#3D352E', color: '#b5a99d', fontSize: 14, cursor: 'pointer' }}>ยกเลิก</button>
         </div>
       </div>
     </div>
@@ -448,17 +451,18 @@ function TabHome({ member, onRefresh, onScan }: { member: Member; onRefresh: () 
   const isMaxTier = pts >= 5000;
   const progressPct = isMaxTier ? 100 : Math.min(100, Math.round(((pts - tierInfo.prevThreshold) / (tierInfo.threshold - tierInfo.prevThreshold)) * 100));
   const remaining = isMaxTier ? 0 : tierInfo.threshold - pts;
+  const [showLocation, setShowLocation] = useState(false);
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div style={{ paddingBottom: 80, animation: 'mem-fadeInUp 0.35s ease' }}>
       {/* Top bar */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '20px 20px 12px',
       }}>
         <div>
-          <div style={{ fontSize: 13, color: '#718096' }}>ยินดีต้อนรับ</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1A202C' }}>{member.name}</div>
+          <div style={{ fontSize: 13, color: '#b5a99d' }}>ยินดีต้อนรับ</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#ffffff' }}>{member.name}</div>
         </div>
         <button
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}
@@ -475,12 +479,14 @@ function TabHome({ member, onRefresh, onScan }: { member: Member; onRefresh: () 
         {/* QR scan button */}
         <button
           onClick={onScan}
+          className="mem-btn-press"
           style={{
             display: 'block', width: '100%', marginTop: 14,
-            background: '#fff', color: '#E53E3E',
-            border: '2px solid #E53E3E', borderRadius: 10,
+            background: '#3D352E', color: '#FF6B4A',
+            border: '2px solid #FF6B4A', borderRadius: 10,
             padding: '12px 0', fontSize: 15, fontWeight: 700,
             cursor: 'pointer', textAlign: 'center',
+            transition: 'box-shadow 0.2s, background 0.2s',
           }}
         >
           สแกน QR CODE สะสมคะแนน
@@ -488,24 +494,24 @@ function TabHome({ member, onRefresh, onScan }: { member: Member; onRefresh: () 
 
         {/* Points progress */}
         <div style={{
-          background: '#fff', borderRadius: 14, padding: 16, marginTop: 16,
-          boxShadow: '0 1px 8px rgba(0,0,0,0.07)',
+          background: '#3D352E', borderRadius: 14, padding: 16, marginTop: 16,
+          boxShadow: '0 1px 8px rgba(0,0,0,0.35)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontWeight: 700, color: '#1A202C', fontSize: 15 }}>คะแนนสะสม</span>
-            <span style={{ fontWeight: 800, color: '#E53E3E', fontSize: 20 }}>
-              {pts.toLocaleString()} <span style={{ fontWeight: 400, color: '#718096', fontSize: 13 }}>แต้ม</span>
+            <span style={{ fontWeight: 700, color: '#ffffff', fontSize: 15 }}>คะแนนสะสม</span>
+            <span style={{ fontWeight: 800, color: '#FF6B4A', fontSize: 20, animation: 'mem-countPop 0.5s ease 0.2s both' }}>
+              {pts.toLocaleString()} <span style={{ fontWeight: 400, color: '#b5a99d', fontSize: 13 }}>แต้ม</span>
             </span>
           </div>
-          <div style={{ height: 10, background: '#FED7D7', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${progressPct}%`, background: 'linear-gradient(90deg,#C53030,#E53E3E)', borderRadius: 10, transition: 'width 0.4s' }} />
+          <div style={{ height: 10, background: 'rgba(255,107,74,0.2)', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${progressPct}%`, background: 'linear-gradient(90deg,#c44a1a,#FF6B4A)', borderRadius: 10, animation: 'mem-progress 1s ease-out' }} />
           </div>
           {!isMaxTier ? (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#718096' }}>
-              สะสมอีก <span style={{ color: '#E53E3E', fontWeight: 700 }}>{remaining.toLocaleString()} แต้ม</span> เพื่อเลื่อนระดับเป็น {tierInfo.nextTier}
+            <div style={{ marginTop: 8, fontSize: 12, color: '#b5a99d' }}>
+              สะสมอีก <span style={{ color: '#FF6B4A', fontWeight: 700 }}>{remaining.toLocaleString()} แต้ม</span> เพื่อเลื่อนระดับเป็น {tierInfo.nextTier}
             </div>
           ) : (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#E53E3E', fontWeight: 600 }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#FF6B4A', fontWeight: 600 }}>
               คุณอยู่ในระดับสูงสุด GOLD แล้ว 🥇
             </div>
           )}
@@ -513,26 +519,129 @@ function TabHome({ member, onRefresh, onScan }: { member: Member; onRefresh: () 
 
         {/* Quick links */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
-          <button style={{
-            background: '#fff', border: 'none', borderRadius: 14, padding: '16px 12px',
-            boxShadow: '0 1px 8px rgba(0,0,0,0.07)',
+          <button onClick={() => setShowLocation(true)} style={{
+            background: '#3D352E', border: 'none', borderRadius: 14, padding: '16px 12px',
+            boxShadow: '0 1px 8px rgba(0,0,0,0.35)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-            cursor: 'pointer',
+            cursor: 'pointer', animation: 'mem-scaleIn 0.4s ease 0.3s both',
           }}>
-            <IconLocation color="#E53E3E" />
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#2D3748' }}>สาขา & การจอง</span>
+            <IconLocation color="#FF6B4A" />
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#F5EDE8' }}>สาขา & การจอง</span>
           </button>
-          <button style={{
-            background: '#fff', border: 'none', borderRadius: 14, padding: '16px 12px',
-            boxShadow: '0 1px 8px rgba(0,0,0,0.07)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-            cursor: 'pointer',
-          }}>
-            <IconTruck color="#E53E3E" />
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#2D3748' }}>เดลิเวอรี่</span>
-          </button>
+          <a
+            href="https://web.facebook.com/profile.php?id=61573820348071"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: '#3D352E', border: 'none', borderRadius: 14, padding: '16px 12px',
+              boxShadow: '0 1px 8px rgba(0,0,0,0.35)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+              cursor: 'pointer', animation: 'mem-scaleIn 0.4s ease 0.45s both',
+              textDecoration: 'none',
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#FF6B4A">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#F5EDE8' }}>ติดต่อเรา</span>
+          </a>
         </div>
       </div>
+
+      {/* Location Modal */}
+      {showLocation && (
+        <div
+          onClick={() => setShowLocation(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            animation: 'mem-fadeIn 0.2s ease',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#3D352E', borderRadius: '20px 20px 0 0',
+              padding: '24px 20px 40px', width: '100%', maxWidth: 480,
+              boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
+              animation: 'mem-fadeInUp 0.3s ease',
+            }}
+          >
+            {/* Handle bar */}
+            <div style={{ width: 40, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, margin: '0 auto 20px' }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <IconLocation color="#FF6B4A" />
+              <span style={{ fontSize: 17, fontWeight: 700, color: '#ffffff' }}>สาขา Tuatak Shabu</span>
+            </div>
+
+            {/* Map thumbnail */}
+            <a
+              href="https://maps.app.goo.gl/yWH1qWxc3SnqNiTe6"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block', background: '#2D2520', borderRadius: 12,
+                overflow: 'hidden', marginBottom: 16, textDecoration: 'none',
+                border: '1px solid rgba(255,107,74,0.2)',
+              }}
+            >
+              <div style={{
+                height: 140,
+                background: 'linear-gradient(135deg, #2D2520 0%, #3D2510 100%)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                <div style={{ fontSize: 36 }}>📍</div>
+                <div style={{ fontSize: 13, color: '#FF6B4A', fontWeight: 600 }}>เปิด Google Maps</div>
+              </div>
+              <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ fontSize: 13, color: '#F5EDE8', fontWeight: 600, marginBottom: 2 }}>
+                  หน้าปั้ม ปตท ถนนเส้น แจ้งพัฒนา
+                </div>
+                <div style={{ fontSize: 12, color: '#b5a99d' }}>จังหวัดปราจีนบุรี</div>
+              </div>
+            </a>
+
+            {/* Phone */}
+            <a
+              href="tel:0953955532"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                background: '#2D2520', borderRadius: 12, padding: '14px 16px',
+                textDecoration: 'none', border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div style={{
+                width: 38, height: 38, borderRadius: '50%',
+                background: 'rgba(255,107,74,0.15)', border: '1px solid rgba(255,107,74,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF6B4A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.6 3.36 2 2 0 0 1 3.59 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#b5a99d', marginBottom: 2 }}>โทรหาเรา</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#FF6B4A', letterSpacing: 1 }}>095 395 5532</div>
+              </div>
+              <div style={{ marginLeft: 'auto', color: '#b5a99d', fontSize: 12 }}>โทรเลย →</div>
+            </a>
+
+            <button
+              onClick={() => setShowLocation(false)}
+              style={{
+                display: 'block', width: '100%', marginTop: 16,
+                padding: '13px 0', background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10,
+                color: '#b5a99d', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              ปิด
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -549,49 +658,49 @@ function TabMemberCard({ member, history, onScan }: { member: Member; history: P
     {
       tier: 'MEMBER',
       key: 'member',
-      color: '#718096',
-      bg: '#F7FAFC',
+      color: '#b5a99d',
+      bg: '#3D352E',
       threshold: '0 แต้ม',
       benefits: ['สะสมคะแนนทุกการสแกน QR', 'รับส่วนลด 5% วันเกิด'],
     },
     {
       tier: 'SILVER',
       key: 'silver',
-      color: '#A0AEC0',
-      bg: '#EDF2F7',
+      color: '#8a7a72',
+      bg: '#4D443C',
       threshold: '1,000 แต้ม',
       benefits: ['ทุกสิทธิ์ของ Member', 'รับส่วนลด 8% วันเกิด', 'ฟรีเครื่องดื่ม 1 แก้ว/เดือน'],
     },
     {
       tier: 'GOLD',
       key: 'gold',
-      color: '#D4A017',
-      bg: '#FFFFF0',
+      color: '#F6AD55',
+      bg: '#3D3520',
       threshold: '5,000 แต้ม',
       benefits: ['ทุกสิทธิ์ของ Silver', 'รับส่วนลด 10% วันเกิด', 'ฟรีของหวาน/เดือน'],
     },
   ];
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div style={{ paddingBottom: 80, animation: 'mem-fadeInUp 0.35s ease' }}>
       <div style={{ padding: '20px 16px 0' }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1A202C', marginBottom: 16 }}>บัตรสมาชิก</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>บัตรสมาชิก</h2>
         <MemberCard member={member} />
 
         <button onClick={onScan} style={{
           display: 'block', width: '100%', marginTop: 14,
-          background: '#E53E3E', color: '#fff',
+          background: '#FF6B4A', color: '#fff',
           border: 'none', borderRadius: 10,
           padding: '13px 0', fontSize: 15, fontWeight: 700,
           cursor: 'pointer', textAlign: 'center',
-          boxShadow: '0 3px 12px rgba(229,62,62,0.35)',
+          boxShadow: '0 3px 12px rgba(255,107,74,0.35)',
         }}>
           สแกน QR Code สะสมคะแนน
         </button>
 
         {/* Inner tab switcher */}
         <div style={{
-          display: 'flex', background: '#F3F4F6', borderRadius: 10,
+          display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: 10,
           padding: 4, marginTop: 20,
         }}>
           {[
@@ -605,7 +714,7 @@ function TabMemberCard({ member, history, onScan }: { member: Member; history: P
                 flex: 1, padding: '8px 4px', border: 'none', cursor: 'pointer',
                 borderRadius: 8, fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
                 background: innerTab === t.key ? '#fff' : 'transparent',
-                color: innerTab === t.key ? '#E53E3E' : '#718096',
+                color: innerTab === t.key ? '#FF6B4A' : '#b5a99d',
                 boxShadow: innerTab === t.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
               }}
             >
@@ -618,7 +727,7 @@ function TabMemberCard({ member, history, onScan }: { member: Member; history: P
         {innerTab === 'benefits' && (
           <div style={{ marginTop: 16 }}>
             {/* Points summary */}
-            <div style={{ background: 'linear-gradient(135deg,#C53030,#E53E3E)', borderRadius: 12, padding: '14px 16px', marginBottom: 16, color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ background: 'linear-gradient(135deg,#c44a1a,#FF6B4A)', borderRadius: 12, padding: '14px 16px', marginBottom: 16, color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: 12, opacity: 0.8 }}>คะแนนสะสมของคุณ</div>
                 <div style={{ fontSize: 26, fontWeight: 800 }}>{pts.toLocaleString()} <span style={{ fontSize: 14, fontWeight: 400 }}>แต้ม</span></div>
@@ -629,44 +738,45 @@ function TabMemberCard({ member, history, onScan }: { member: Member; history: P
               </div>
             </div>
 
-            {tierCards.map((tc) => (
+            {tierCards.map((tc, idx) => (
               <div key={tc.tier} style={{
                 background: tc.bg,
                 border: `2px solid ${currentTier === tc.key ? tc.color : 'transparent'}`,
                 borderRadius: 12, padding: '14px 16px', marginBottom: 12,
+                animation: `mem-scaleIn 0.35s ease ${idx * 0.1}s both`,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontWeight: 800, fontSize: 15, color: tc.color, letterSpacing: 1 }}>{tc.tier}</span>
                     {currentTier === tc.key && <span style={{ background: tc.color, color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10 }}>ระดับของคุณ</span>}
                   </div>
-                  <span style={{ fontSize: 11, color: '#718096' }}>ตั้งแต่ {tc.threshold}</span>
+                  <span style={{ fontSize: 11, color: '#b5a99d' }}>ตั้งแต่ {tc.threshold}</span>
                 </div>
                 <ul style={{ margin: 0, paddingLeft: 16 }}>
                   {tc.benefits.map((b, i) => (
-                    <li key={i} style={{ fontSize: 13, color: '#4A5568', marginBottom: 3 }}>{b}</li>
+                    <li key={i} style={{ fontSize: 13, color: '#c5b3a8', marginBottom: 3 }}>{b}</li>
                   ))}
                 </ul>
               </div>
             ))}
 
             {/* Tier progression */}
-            <div style={{ background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 1px 8px rgba(0,0,0,0.07)', marginTop: 4, marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1A202C', marginBottom: 12 }}>ระดับความสำเร็จ</div>
+            <div style={{ background: '#3D352E', borderRadius: 12, padding: 16, boxShadow: '0 1px 8px rgba(0,0,0,0.35)', marginTop: 4, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', marginBottom: 12 }}>ระดับความสำเร็จ</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 {tierCards.map((tc, idx) => (
                   <div key={tc.tier} style={{ display: 'flex', alignItems: 'center' }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: currentTier === tc.key ? tc.color : '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 4px', border: currentTier === tc.key ? `2px solid ${tc.color}` : '2px solid transparent' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: currentTier === tc.key ? '#fff' : '#A0AEC0' }}>{tc.tier[0]}</span>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: currentTier === tc.key ? tc.color : 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 4px', border: currentTier === tc.key ? `2px solid ${tc.color}` : '2px solid transparent' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: currentTier === tc.key ? '#fff' : '#8a7a72' }}>{tc.tier[0]}</span>
                       </div>
-                      <div style={{ fontSize: 9, color: '#718096', fontWeight: 600 }}>{tc.tier}</div>
+                      <div style={{ fontSize: 9, color: '#b5a99d', fontWeight: 600 }}>{tc.tier}</div>
                     </div>
-                    {idx < tierCards.length - 1 && <div style={{ width: 32, height: 2, background: '#E2E8F0', margin: '0 4px 14px' }} />}
+                    {idx < tierCards.length - 1 && <div style={{ width: 32, height: 2, background: 'rgba(255,255,255,0.12)', margin: '0 4px 14px' }} />}
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: '#718096', marginTop: 10, textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: '#b5a99d', marginTop: 10, textAlign: 'center' }}>
                 Member (0) → Silver (1,000) → Gold (5,000 แต้ม)
               </div>
             </div>
@@ -677,28 +787,29 @@ function TabMemberCard({ member, history, onScan }: { member: Member; history: P
         {innerTab === 'history' && (
           <div style={{ marginTop: 16, marginBottom: 16 }}>
             {history.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#A0AEC0' }}>
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#8a7a72' }}>
                 <div style={{ fontSize: 14 }}>ยังไม่มีประวัติการสะสมคะแนน</div>
               </div>
             ) : (
-              history.map((h) => (
+              history.map((h, i) => (
                 <div key={h.id} style={{
-                  background: '#fff', borderRadius: 10, padding: '12px 16px',
-                  marginBottom: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.07)',
+                  background: '#3D352E', borderRadius: 10, padding: '12px 16px',
+                  marginBottom: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.35)',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  animation: `mem-fadeInUp 0.3s ease ${i * 0.06}s both`,
                 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#2D3748' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#F5EDE8' }}>
                       {h.description || (h.type === 'earn' ? 'สะสมคะแนน' : 'แลกคะแนน')}
                     </div>
-                    <div style={{ fontSize: 11, color: '#A0AEC0', marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: '#8a7a72', marginTop: 2 }}>
                       {formatDate(h.createdAt)}
                       {h.tableNumber ? ` • โต๊ะ ${h.tableNumber}` : ''}
                     </div>
                   </div>
                   <div style={{
                     fontWeight: 800, fontSize: 16,
-                    color: h.type === 'earn' ? '#38A169' : '#E53E3E',
+                    color: h.type === 'earn' ? '#68D391' : '#FF6B4A',
                   }}>
                     {h.type === 'earn' ? '+' : '-'}{h.points}
                   </div>
@@ -741,9 +852,9 @@ function CouponCopyButton({ code }: { code: string }) {
   return (
     <button onClick={handleCopy} style={{
       padding: '6px 14px', borderRadius: 8,
-      border: `1px solid ${copied ? '#38A169' : '#E53E3E'}`,
-      background: copied ? '#F0FFF4' : '#FFF5F5',
-      color: copied ? '#38A169' : '#E53E3E',
+      border: `1px solid ${copied ? '#68D391' : '#FF6B4A'}`,
+      background: copied ? 'rgba(104,211,145,0.12)' : 'rgba(255,107,74,0.08)',
+      color: copied ? '#68D391' : '#FF6B4A',
       fontSize: 12, fontWeight: 700, cursor: 'pointer',
       display: 'flex', alignItems: 'center', gap: 4,
     }}>
@@ -813,13 +924,13 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
     return (
       <div style={{
         borderRadius: 12,
-        border: `1px solid ${isMine && isExpiredCoupon ? '#E2E8F0' : '#FED7D7'}`,
-        background: (isMine && isExpiredCoupon) ? '#F9F9F9' : '#fff',
+        border: `1px solid ${isMine && isExpiredCoupon ? 'rgba(255,255,255,0.12)' : 'rgba(255,107,74,0.2)'}`,
+        background: (isMine && isExpiredCoupon) ? '#2D2520' : '#3D352E',
         overflow: 'hidden',
         opacity: (isMine && isExpiredCoupon) ? 0.6 : 1,
-        boxShadow: (isMine && isExpiredCoupon) ? 'none' : '0 2px 8px rgba(229,62,62,0.06)',
+        boxShadow: (isMine && isExpiredCoupon) ? 'none' : '0 2px 8px rgba(255,107,74,0.06)',
       }}>
-        <div style={{ height: 4, background: (isMine && isExpiredCoupon) ? '#CBD5E0' : 'linear-gradient(90deg,#E53E3E,#FC8181)' }} />
+        <div style={{ height: 4, background: (isMine && isExpiredCoupon) ? 'rgba(255,255,255,0.15)' : 'linear-gradient(90deg,#FF6B4A,#FC8181)' }} />
         <div style={{ display: 'flex' }}>
           {/* Left: discount value */}
           <div style={{
@@ -827,49 +938,49 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
             borderRight: '1px dashed #FED7D7',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             padding: '12px 4px', textAlign: 'center',
-            background: (isMine && isExpiredCoupon) ? 'transparent' : '#FFF5F5',
+            background: (isMine && isExpiredCoupon) ? 'transparent' : 'rgba(255,107,74,0.08)',
           }}>
-            <div style={{ color: (isMine && isExpiredCoupon) ? '#A0AEC0' : '#E53E3E', fontSize: c.discount_type === 'percent' ? 20 : 15, fontWeight: 900, lineHeight: 1 }}>
+            <div style={{ color: (isMine && isExpiredCoupon) ? '#8a7a72' : '#FF6B4A', fontSize: c.discount_type === 'percent' ? 20 : 15, fontWeight: 900, lineHeight: 1 }}>
               {c.discount_type === 'percent' ? `${c.discount_value}%` : `฿${c.discount_value.toLocaleString()}`}
             </div>
-            <div style={{ color: '#A0AEC0', fontSize: 10, fontWeight: 600, marginTop: 3, textTransform: 'uppercase' }}>
+            <div style={{ color: '#8a7a72', fontSize: 10, fontWeight: 600, marginTop: 3, textTransform: 'uppercase' }}>
               {c.discount_type === 'percent' ? 'ส่วนลด' : 'บาท'}
             </div>
           </div>
 
           {/* Right: details */}
           <div style={{ flex: 1, padding: '10px 12px' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1A202C', marginBottom: 2 }}>{c.title}</div>
-            {c.description && <div style={{ fontSize: 11, color: '#718096', marginBottom: 4 }}>{c.description}</div>}
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', marginBottom: 2 }}>{c.title}</div>
+            {c.description && <div style={{ fontSize: 11, color: '#b5a99d', marginBottom: 4 }}>{c.description}</div>}
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
               {/* Points cost badge */}
               {c.points_cost > 0 ? (
                 <span style={{
                   fontSize: 11, fontWeight: 700,
-                  color: isRedeemed ? '#718096' : (canAfford ? '#D97706' : '#E53E3E'),
-                  background: isRedeemed ? '#F7FAFC' : (canAfford ? '#FFFBEB' : '#FFF5F5'),
-                  border: `1px solid ${isRedeemed ? '#E2E8F0' : (canAfford ? '#FDE68A' : '#FED7D7')}`,
+                  color: isRedeemed ? '#b5a99d' : (canAfford ? '#F6AD55' : '#FF6B4A'),
+                  background: isRedeemed ? '#3D352E' : (canAfford ? 'rgba(246,173,85,0.12)' : 'rgba(255,107,74,0.08)'),
+                  border: `1px solid ${isRedeemed ? 'rgba(255,255,255,0.12)' : (canAfford ? 'rgba(246,173,85,0.4)' : 'rgba(255,107,74,0.2)')}`,
                   borderRadius: 4, padding: '1px 6px',
                 }}>
                   ⭐ {c.points_cost} แต้ม
                 </span>
               ) : (
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#38A169', background: '#F0FFF4', border: '1px solid #9AE6B4', borderRadius: 4, padding: '1px 6px' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#68D391', background: 'rgba(104,211,145,0.12)', border: '1px solid rgba(104,211,145,0.4)', borderRadius: 4, padding: '1px 6px' }}>
                   ฟรี!
                 </span>
               )}
               {c.min_order > 0 && (
-                <span style={{ fontSize: 11, color: '#718096', background: '#F7FAFC', border: '1px solid #E2E8F0', borderRadius: 4, padding: '1px 6px' }}>
+                <span style={{ fontSize: 11, color: '#b5a99d', background: '#2D2520', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: '1px 6px' }}>
                   ขั้นต่ำ ฿{c.min_order.toLocaleString()}
                 </span>
               )}
               {remaining !== null && (
-                <span style={{ fontSize: 11, color: remaining <= 5 ? '#E53E3E' : '#718096', background: '#F7FAFC', border: `1px solid ${remaining <= 5 ? '#FED7D7' : '#E2E8F0'}`, borderRadius: 4, padding: '1px 6px' }}>
+                <span style={{ fontSize: 11, color: remaining <= 5 ? '#FF6B4A' : '#b5a99d', background: '#2D2520', border: `1px solid ${remaining <= 5 ? 'rgba(255,107,74,0.2)' : 'rgba(255,255,255,0.12)'}`, borderRadius: 4, padding: '1px 6px' }}>
                   เหลือ {remaining} สิทธิ์
                 </span>
               )}
-              <span style={{ fontSize: 11, color: '#718096', background: '#F7FAFC', border: '1px solid #E2E8F0', borderRadius: 4, padding: '1px 6px' }}>
+              <span style={{ fontSize: 11, color: '#b5a99d', background: '#2D2520', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: '1px 6px' }}>
                 {timeLeftStr(c.expires_at)}
               </span>
             </div>
@@ -879,8 +990,8 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
               // Already claimed — show code + copy
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  background: isExpiredCoupon ? '#E2E8F0' : '#FFF5F5',
-                  color: isExpiredCoupon ? '#718096' : '#E53E3E',
+                  background: isExpiredCoupon ? 'rgba(255,255,255,0.12)' : 'rgba(255,107,74,0.08)',
+                  color: isExpiredCoupon ? '#b5a99d' : '#FF6B4A',
                   fontSize: 12, fontWeight: 800,
                   padding: '3px 10px', borderRadius: 4,
                   letterSpacing: 1, fontFamily: 'monospace',
@@ -892,7 +1003,7 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
             ) : isRedeemed && c.code ? (
               // Claimed from available list
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ background: '#FFF5F5', color: '#E53E3E', fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace' }}>
+                <span style={{ background: 'rgba(255,107,74,0.08)', color: '#FF6B4A', fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace' }}>
                   {c.code}
                 </span>
                 <CouponCopyButton code={c.code} />
@@ -904,8 +1015,8 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
                 disabled={redeeming === c.id || !canAfford}
                 style={{
                   padding: '6px 16px', borderRadius: 8, border: 'none',
-                  background: redeeming === c.id ? '#CBD5E0' : (canAfford ? '#E53E3E' : '#EDF2F7'),
-                  color: canAfford ? '#fff' : '#A0AEC0',
+                  background: redeeming === c.id ? 'rgba(255,255,255,0.15)' : (canAfford ? '#FF6B4A' : '#4D443C'),
+                  color: canAfford ? '#fff' : '#8a7a72',
                   fontSize: 12, fontWeight: 700, cursor: canAfford ? 'pointer' : 'not-allowed',
                   display: 'flex', alignItems: 'center', gap: 5,
                 }}
@@ -920,23 +1031,23 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
   };
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div style={{ paddingBottom: 80, animation: 'mem-fadeInUp 0.35s ease' }}>
       <div style={{ padding: '20px 16px 0' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1A202C', margin: 0 }}>รางวัลของฉัน</h2>
-          <div style={{ fontSize: 13, color: '#D97706', fontWeight: 700 }}>⭐ {member.points.toLocaleString()} แต้ม</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#ffffff', margin: 0 }}>รางวัลของฉัน</h2>
+          <div style={{ fontSize: 13, color: '#F6AD55', fontWeight: 700 }}>⭐ {member.points.toLocaleString()} แต้ม</div>
         </div>
-        <div style={{ fontSize: 12, color: '#A0AEC0', marginBottom: 16 }}>แลกแต้มเพื่อรับคูปองส่วนลด</div>
+        <div style={{ fontSize: 12, color: '#8a7a72', marginBottom: 16 }}>แลกแต้มเพื่อรับคูปองส่วนลด</div>
 
         {redeemError && (
-          <div style={{ background: '#FFF5F5', border: '1px solid #FED7D7', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#E53E3E' }}>
+          <div style={{ background: 'rgba(255,107,74,0.08)', border: '1px solid rgba(255,107,74,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#FF6B4A' }}>
             {redeemError}
           </div>
         )}
 
         {/* Inner tabs */}
-        <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: 10, padding: 4, marginBottom: 16 }}>
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 4, marginBottom: 16 }}>
           {[
             { key: 'available', label: 'คูปองที่แลกได้' },
             { key: 'claimed', label: `คูปองของฉัน${myCoupons.length > 0 ? ` (${myCoupons.length})` : ''}` },
@@ -948,7 +1059,7 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
                 flex: 1, padding: '8px 4px', border: 'none', cursor: 'pointer',
                 borderRadius: 8, fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
                 background: innerTab === t.key ? '#fff' : 'transparent',
-                color: innerTab === t.key ? '#E53E3E' : '#718096',
+                color: innerTab === t.key ? '#FF6B4A' : '#b5a99d',
                 boxShadow: innerTab === t.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
               }}
             >
@@ -958,25 +1069,29 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#A0AEC0', fontSize: 14 }}>กำลังโหลด...</div>
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#8a7a72', fontSize: 14 }}>กำลังโหลด...</div>
         ) : list.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <div style={{ marginBottom: 16, opacity: 0.3 }}><IconTicket color="#E53E3E" /></div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#4A5568', marginBottom: 8 }}>
+            <div style={{ marginBottom: 16, opacity: 0.3 }}><IconTicket color="#FF6B4A" /></div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#c5b3a8', marginBottom: 8 }}>
               {innerTab === 'available' ? 'ยังไม่มีคูปองให้แลกในขณะนี้' : 'ยังไม่มีคูปองของฉัน'}
             </div>
-            <div style={{ fontSize: 13, color: '#A0AEC0', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: '#8a7a72', lineHeight: 1.6 }}>
               {innerTab === 'available' ? 'ติดตามโปรโมชันจากทางร้านได้เร็วๆ นี้' : 'แลกคูปองจากแท็บ "คูปองที่แลกได้"'}
             </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {list.map(c => <CouponCard key={c.id} c={c} isMine={innerTab === 'claimed'} />)}
+            {list.map((c, i) => (
+              <div key={c.id} style={{ animation: `mem-fadeInUp 0.35s ease ${i * 0.07}s both` }}>
+                <CouponCard c={c} isMine={innerTab === 'claimed'} />
+              </div>
+            ))}
           </div>
         )}
 
         {!loading && innerTab === 'claimed' && myCoupons.some(c => new Date(c.expires_at).getTime() > Date.now()) && (
-          <div style={{ marginTop: 16, padding: '10px 14px', background: '#FFF5F5', borderRadius: 8, fontSize: 12, color: '#718096', lineHeight: 1.6 }}>
+          <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(255,107,74,0.08)', borderRadius: 8, fontSize: 12, color: '#b5a99d', lineHeight: 1.6 }}>
             💡 คัดลอกรหัสคูปองแล้วแจ้งพนักงานก่อนชำระเงิน
           </div>
         )}
@@ -989,34 +1104,48 @@ function TabRewards({ member, onPointsUpdate }: { member: Member; onPointsUpdate
 
 function TabProfile({ member, onLogout }: { member: Member; onLogout: () => void }) {
   const initial = member.name ? member.name[0].toUpperCase() : 'M';
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const toggle = (s: string) => setOpenSection(prev => prev === s ? null : s);
 
-  const menuItems = [
-    { label: 'ข้อมูลส่วนตัว' },
-    { label: 'ที่อยู่' },
-    { label: 'คำถามที่พบบ่อย' },
-    { label: 'ข้อกำหนดและเงื่อนไข' },
-  ];
+  const genderLabel = member.gender === 'male' ? '👨 ชาย' : member.gender === 'female' ? '👩 หญิง' : member.gender === 'other' ? '🧑 อื่นๆ' : '-';
+
+  function InfoRow({ label, value }: { label: string; value: string }) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <span style={{ fontSize: 13, color: '#b5a99d', minWidth: 90 }}>{label}</span>
+        <span style={{ fontSize: 13, color: '#F5EDE8', fontWeight: 500, textAlign: 'right', maxWidth: 220, lineHeight: 1.5 }}>{value || '-'}</span>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ paddingBottom: 80 }}>
-      {/* Red top area */}
+    <div style={{ paddingBottom: 80, animation: 'mem-fadeInUp 0.35s ease' }}>
+      {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg,#C53030,#E53E3E)',
+        background: 'linear-gradient(135deg,#c44a1a,#FF6B4A)',
         padding: '40px 20px 60px',
         textAlign: 'center',
       }}>
-        <div style={{
-          width: 80, height: 80, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.25)',
-          border: '3px solid rgba(255,255,255,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 12px',
-          fontSize: 32, fontWeight: 800, color: '#fff',
-        }}>
-          {initial}
-        </div>
+        {member.linePictureUrl ? (
+          <img src={member.linePictureUrl} alt="profile" style={{
+            width: 80, height: 80, borderRadius: '50%',
+            border: '3px solid rgba(255,255,255,0.5)',
+            objectFit: 'cover', margin: '0 auto 12px', display: 'block',
+          }} />
+        ) : (
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.25)',
+            border: '3px solid rgba(255,255,255,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 12px',
+            fontSize: 32, fontWeight: 800, color: '#fff',
+          }}>
+            {initial}
+          </div>
+        )}
         <div style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>{member.name}</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{member.phone}</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{member.phone || 'ยังไม่ได้ระบุเบอร์'}</div>
         <div style={{ marginTop: 8 }}>
           <span style={{
             background: 'rgba(255,255,255,0.2)',
@@ -1029,53 +1158,109 @@ function TabProfile({ member, onLogout }: { member: Member; onLogout: () => void
         </div>
       </div>
 
-      {/* White card overlap */}
+      {/* Stats card */}
       <div style={{
         margin: '-28px 16px 0',
-        background: '#fff', borderRadius: 16,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        background: '#3D352E', borderRadius: 16,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
         overflow: 'hidden',
       }}>
-        {/* Points summary */}
-        <div style={{
-          display: 'flex', borderBottom: '1px solid #F3F4F6',
-        }}>
-          <div style={{ flex: 1, padding: '16px 0', textAlign: 'center', borderRight: '1px solid #F3F4F6' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#E53E3E' }}>{member.points}</div>
-            <div style={{ fontSize: 11, color: '#718096', marginTop: 2 }}>คะแนน</div>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ flex: 1, padding: '16px 0', textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#FF6B4A' }}>{member.points}</div>
+            <div style={{ fontSize: 11, color: '#b5a99d', marginTop: 2 }}>คะแนน</div>
           </div>
           <div style={{ flex: 1, padding: '16px 0', textAlign: 'center' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#E53E3E' }}>{member.totalVisits}</div>
-            <div style={{ fontSize: 11, color: '#718096', marginTop: 2 }}>ครั้ง</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#FF6B4A' }}>{member.totalVisits}</div>
+            <div style={{ fontSize: 11, color: '#b5a99d', marginTop: 2 }}>ครั้ง</div>
           </div>
         </div>
-
-        {/* Menu list */}
-        {menuItems.map((item, idx) => (
-          <button
-            key={item.label}
-            style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              width: '100%', padding: '16px 20px',
-              background: 'none', border: 'none', cursor: 'pointer',
-              borderBottom: idx < menuItems.length - 1 ? '1px solid #F3F4F6' : 'none',
-              textAlign: 'left',
-            }}
-          >
-            <span style={{ fontSize: 14, color: '#2D3748', fontWeight: 500 }}>{item.label}</span>
-            <IconChevronRight color="#A0AEC0" />
-          </button>
-        ))}
       </div>
 
-      {/* Logout button */}
-      <div style={{ padding: '24px 16px' }}>
+      {/* Accordion sections */}
+      <div style={{ margin: '16px 16px 0' }}>
+
+        {/* ข้อมูลส่วนตัว */}
+        <div style={{ background: '#3D352E', borderRadius: 14, marginBottom: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+          <button
+            onClick={() => toggle('personal')}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              width: '100%', padding: '15px 18px',
+              background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <span style={{ fontSize: 14, color: '#F5EDE8', fontWeight: 600 }}>👤 ข้อมูลส่วนตัว</span>
+            <span style={{ color: '#b5a99d', fontSize: 12, transition: 'transform 0.2s', transform: openSection === 'personal' ? 'rotate(90deg)' : 'none' }}>▶</span>
+          </button>
+          {openSection === 'personal' && (
+            <div style={{ padding: '0 18px 14px', animation: 'mem-fadeInUp 0.2s ease' }}>
+              <InfoRow label="ชื่อ" value={member.name} />
+              <InfoRow label="เบอร์โทร" value={member.phone || '-'} />
+              <InfoRow label="เพศ" value={genderLabel} />
+              <InfoRow label="สมาชิกตั้งแต่" value={formatDate(member.createdAt)} />
+            </div>
+          )}
+        </div>
+
+        {/* ที่อยู่ */}
+        <div style={{ background: '#3D352E', borderRadius: 14, marginBottom: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+          <button
+            onClick={() => toggle('address')}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              width: '100%', padding: '15px 18px',
+              background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <span style={{ fontSize: 14, color: '#F5EDE8', fontWeight: 600 }}>🏠 ที่อยู่</span>
+            <span style={{ color: '#b5a99d', fontSize: 12, transition: 'transform 0.2s', transform: openSection === 'address' ? 'rotate(90deg)' : 'none' }}>▶</span>
+          </button>
+          {openSection === 'address' && (
+            <div style={{ padding: '0 18px 14px', animation: 'mem-fadeInUp 0.2s ease' }}>
+              {member.address ? (
+                <div style={{ fontSize: 13, color: '#F5EDE8', lineHeight: 1.7, paddingTop: 4 }}>
+                  <span style={{ color: '#FF6B4A', marginRight: 6 }}>📍</span>{member.address}
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: '#b5a99d', paddingTop: 4 }}>ยังไม่ได้ระบุที่อยู่</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* บัตรสมาชิก */}
+        <div style={{ background: '#3D352E', borderRadius: 14, marginBottom: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+          <button
+            onClick={() => toggle('membership')}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              width: '100%', padding: '15px 18px',
+              background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <span style={{ fontSize: 14, color: '#F5EDE8', fontWeight: 600 }}>🎫 ข้อมูลบัตรสมาชิก</span>
+            <span style={{ color: '#b5a99d', fontSize: 12, transition: 'transform 0.2s', transform: openSection === 'membership' ? 'rotate(90deg)' : 'none' }}>▶</span>
+          </button>
+          {openSection === 'membership' && (
+            <div style={{ padding: '0 18px 14px', animation: 'mem-fadeInUp 0.2s ease' }}>
+              <InfoRow label="เลขบัตร" value={member.memberNumber || '-'} />
+              <InfoRow label="ระดับ" value={getTierLabel(member.tier)} />
+              <InfoRow label="หมดอายุ" value={member.validTill ? formatDate(member.validTill) : '-'} />
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* Logout */}
+      <div style={{ padding: '16px 16px 0' }}>
         <button
           onClick={onLogout}
           style={{
             display: 'block', width: '100%',
-            background: '#fff', color: '#E53E3E',
-            border: '2px solid #E53E3E', borderRadius: 10,
+            background: '#3D352E', color: '#FF6B4A',
+            border: '2px solid #FF6B4A', borderRadius: 10,
             padding: '13px 0', fontSize: 15, fontWeight: 700,
             cursor: 'pointer', textAlign: 'center',
           }}
@@ -1087,69 +1272,107 @@ function TabProfile({ member, onLogout }: { member: Member; onLogout: () => void
   );
 }
 
-// ─── Login / Register ─────────────────────────────────────────────────────────
+// ─── Profile Complete Screen ───────────────────────────────────────────────────
 
-function LoginScreen({ onLogin }: { onLogin: (member: Member) => void }) {
-  const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
+interface GeoProvince { code: number; name_th: string; name_en: string; }
+interface GeoDistrict { code: number; name_th: string; province_code: number; }
+interface GeoSubdistrict { code: number; name_th: string; district_code: number; postal_code: number; }
+
+const GEO_BASE = '/api/geo';
+
+function ProfileCompleteScreen({ member, onComplete }: { member: Member; onComplete: (m: Member) => void }) {
+  const [phone, setPhone] = useState(member.phone || '');
+  const [houseStreet, setHouseStreet] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>(member.gender || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // LINE setup mode (first-time LINE user needs to enter phone)
-  const [lineSetup, setLineSetup] = useState(false);
-  const [lineUid, setLineUid] = useState('');
-  const [linePic, setLinePic] = useState('');
+  // Geo state
+  const [provinces, setProvinces] = useState<GeoProvince[]>([]);
+  const [districts, setDistricts] = useState<GeoDistrict[]>([]);
+  const [subdistricts, setSubdistricts] = useState<GeoSubdistrict[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState<GeoProvince | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<GeoDistrict | null>(null);
+  const [selectedSubdistrict, setSelectedSubdistrict] = useState<GeoSubdistrict | null>(null);
+  const [postalCode, setPostalCode] = useState('');
+  const [geoLoading, setGeoLoading] = useState(false);
 
+  // Load all provinces on mount
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('line_setup') === '1') {
-      setLineSetup(true);
-      setLineUid(params.get('line_uid') || '');
-      setLinePic(params.get('line_pic') || '');
-      setName(params.get('line_name') || '');
-    }
-    const err = params.get('error');
-    if (err === 'line_denied') setError('ยกเลิกการเข้าสู่ระบบด้วย LINE');
-    else if (err) setError('เกิดข้อผิดพลาดจาก LINE กรุณาลองใหม่');
+    fetch(`${GEO_BASE}?type=provinces`)
+      .then(r => r.json())
+      .then(d => setProvinces(d.data || []))
+      .catch(() => {});
   }, []);
 
-  function handleLineLogin() {
-    const clientId = process.env.NEXT_PUBLIC_LINE_CHANNEL_ID;
-    if (!clientId) {
-      setError('LINE Login ยังไม่ได้ตั้งค่า');
-      return;
-    }
-    const redirectUri = `${window.location.origin}/api/auth/line/callback`;
-    const state = Math.random().toString(36).substring(2, 10);
-    const url = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=profile`;
-    window.location.href = url;
+  // Load districts when province changes
+  useEffect(() => {
+    if (!selectedProvince) { setDistricts([]); setSelectedDistrict(null); setSubdistricts([]); setSelectedSubdistrict(null); setPostalCode(''); return; }
+    setGeoLoading(true);
+    fetch(`${GEO_BASE}?type=districts&province_code=${selectedProvince.code}`)
+      .then(r => r.json())
+      .then(d => { setDistricts(d.data || []); setSelectedDistrict(null); setSubdistricts([]); setSelectedSubdistrict(null); setPostalCode(''); })
+      .catch(() => {})
+      .finally(() => setGeoLoading(false));
+  }, [selectedProvince]);
+
+  // Load subdistricts when district changes
+  useEffect(() => {
+    if (!selectedDistrict) { setSubdistricts([]); setSelectedSubdistrict(null); setPostalCode(''); return; }
+    setGeoLoading(true);
+    fetch(`${GEO_BASE}?type=subdistricts&district_code=${selectedDistrict.code}`)
+      .then(r => r.json())
+      .then(d => { setSubdistricts(d.data || []); setSelectedSubdistrict(null); setPostalCode(''); })
+      .catch(() => {})
+      .finally(() => setGeoLoading(false));
+  }, [selectedDistrict]);
+
+  const selectStyle: React.CSSProperties = {
+    width: '100%', padding: '11px 14px',
+    border: '2px solid rgba(255,255,255,0.15)', borderRadius: 10,
+    fontSize: 14, outline: 'none', boxSizing: 'border-box',
+    color: '#F5EDE8', background: '#2D2520',
+    appearance: 'none', WebkitAppearance: 'none',
+    cursor: 'pointer',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '11px 14px',
+    border: '2px solid rgba(255,255,255,0.15)', borderRadius: 10,
+    fontSize: 14, outline: 'none', boxSizing: 'border-box',
+    color: '#F5EDE8', background: '#2D2520',
+  };
+
+  const focusBorder = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { e.target.style.borderColor = '#FF6B4A'; };
+  const blurBorder = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { e.target.style.borderColor = 'rgba(255,255,255,0.15)'; };
+
+  function buildAddress() {
+    const parts = [houseStreet.trim()];
+    if (selectedSubdistrict) parts.push(`ต.${selectedSubdistrict.name_th}`);
+    if (selectedDistrict) parts.push(`อ.${selectedDistrict.name_th}`);
+    if (selectedProvince) parts.push(`จ.${selectedProvince.name_th}`);
+    if (postalCode) parts.push(postalCode);
+    return parts.filter(Boolean).join(' ');
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const needPhone = !phone.trim();
-    const needName = !name.trim();
-    if (needPhone || needName) {
-      setError('กรุณากรอกข้อมูลให้ครบ');
+    if (!selectedProvince || !selectedDistrict || !selectedSubdistrict || !gender) {
+      setError('กรุณาเลือกจังหวัด อำเภอ และตำบล และระบุเพศ');
       return;
     }
+    const address = buildAddress();
     setLoading(true);
     setError('');
     try {
-      const body: Record<string, string> = { name: name.trim() };
-      if (phone.trim()) body.phone = phone.trim();
-      if (lineUid) { body.lineUid = lineUid; body.linePictureUrl = linePic; }
-
-      const res = await fetch('/api/member', {
-        method: 'POST',
+      const res = await fetch('/api/members/profile', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ phone: phone.trim() || undefined, address, gender }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
-      onLogin(data.member);
-      // Clean up URL params
-      window.history.replaceState({}, '', '/member');
+      onComplete(data.member);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
     } finally {
@@ -1157,161 +1380,286 @@ function LoginScreen({ onLogin }: { onLogin: (member: Member) => void }) {
     }
   }
 
+  const GENDERS = [
+    { value: 'male', label: 'ชาย', emoji: '👨' },
+    { value: 'female', label: 'หญิง', emoji: '👩' },
+    { value: 'other', label: 'อื่นๆ', emoji: '🧑' },
+  ];
+
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(160deg,#C53030 0%,#E53E3E 40%,#FFF5F5 100%)',
+      background: 'linear-gradient(160deg, #2D2520 0%, #3D352E 60%, #2D2520 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '24px 16px',
     }}>
-      <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <div style={{ fontSize: 36, fontWeight: 900, color: '#fff', letterSpacing: 2 }}>Tuatak</div>
-        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 4, letterSpacing: 3 }}>LOYALTY CARD</div>
+      <div style={{ textAlign: 'center', marginBottom: 28, animation: 'mem-fadeInUp 0.4s ease' }}>
+        <div style={{ fontSize: 36, marginBottom: 8 }}>👤</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#FF6B4A', letterSpacing: 1 }}>ยินดีต้อนรับ!</div>
+        <div style={{ fontSize: 14, color: '#b5a99d', marginTop: 6 }}>กรอกข้อมูลเพิ่มเติมเพื่อรับสิทธิพิเศษ</div>
+      </div>
+
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: '#3D352E', borderRadius: 20, padding: '28px 24px',
+          width: '100%', maxWidth: 420,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          animation: 'mem-fadeInUp 0.45s ease 0.1s both',
+        }}
+      >
+        {/* Phone */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#c5b3a8', marginBottom: 6 }}>
+            📱 เบอร์โทรศัพท์
+          </label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            placeholder="0812345678"
+            style={{ ...inputStyle, fontSize: 15 }}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+          />
+        </div>
+
+        {/* Address header */}
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#c5b3a8', marginBottom: 10 }}>🏠 ที่อยู่ *</div>
+
+        {/* House / Street */}
+        <div style={{ marginBottom: 10 }}>
+          <input
+            type="text"
+            value={houseStreet}
+            onChange={e => setHouseStreet(e.target.value)}
+            placeholder="บ้านเลขที่ / ถนน (ไม่บังคับ)"
+            style={inputStyle}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+          />
+        </div>
+
+        {/* Province */}
+        <div style={{ marginBottom: 10, position: 'relative' }}>
+          <select
+            value={selectedProvince?.code ?? ''}
+            onChange={e => {
+              const p = provinces.find(x => x.code === Number(e.target.value)) ?? null;
+              setSelectedProvince(p);
+            }}
+            style={selectStyle}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+          >
+            <option value="">-- เลือกจังหวัด --</option>
+            {provinces.map(p => (
+              <option key={p.code} value={p.code}>{p.name_th}</option>
+            ))}
+          </select>
+          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#b5a99d', pointerEvents: 'none', fontSize: 12 }}>▼</span>
+        </div>
+
+        {/* District */}
+        <div style={{ marginBottom: 10, position: 'relative' }}>
+          <select
+            value={selectedDistrict?.code ?? ''}
+            onChange={e => {
+              const d = districts.find(x => x.code === Number(e.target.value)) ?? null;
+              setSelectedDistrict(d);
+            }}
+            disabled={!selectedProvince || geoLoading}
+            style={{ ...selectStyle, opacity: !selectedProvince ? 0.45 : 1 }}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+          >
+            <option value="">-- เลือกอำเภอ/เขต --</option>
+            {districts.map(d => (
+              <option key={d.code} value={d.code}>{d.name_th}</option>
+            ))}
+          </select>
+          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#b5a99d', pointerEvents: 'none', fontSize: 12 }}>▼</span>
+        </div>
+
+        {/* Subdistrict */}
+        <div style={{ marginBottom: 10, position: 'relative' }}>
+          <select
+            value={selectedSubdistrict?.code ?? ''}
+            onChange={e => {
+              const s = subdistricts.find(x => x.code === Number(e.target.value)) ?? null;
+              setSelectedSubdistrict(s);
+              setPostalCode(s ? String(s.postal_code) : '');
+            }}
+            disabled={!selectedDistrict || geoLoading}
+            style={{ ...selectStyle, opacity: !selectedDistrict ? 0.45 : 1 }}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+          >
+            <option value="">-- เลือกตำบล/แขวง --</option>
+            {subdistricts.map(s => (
+              <option key={s.code} value={s.code}>{s.name_th}</option>
+            ))}
+          </select>
+          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#b5a99d', pointerEvents: 'none', fontSize: 12 }}>▼</span>
+        </div>
+
+        {/* Postal code (auto-filled) */}
+        <div style={{ marginBottom: 16 }}>
+          <input
+            type="text"
+            value={postalCode}
+            onChange={e => setPostalCode(e.target.value)}
+            placeholder="รหัสไปรษณีย์ (กรอกอัตโนมัติ)"
+            style={{ ...inputStyle, color: postalCode ? '#FF6B4A' : '#b5a99d' }}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+          />
+        </div>
+
+        {/* Address preview */}
+        {buildAddress() && (
+          <div style={{
+            background: 'rgba(255,107,74,0.07)', border: '1px solid rgba(255,107,74,0.2)',
+            borderRadius: 8, padding: '9px 12px', fontSize: 12, color: '#c5b3a8',
+            marginBottom: 16, lineHeight: 1.6,
+          }}>
+            <span style={{ color: '#FF6B4A', fontWeight: 600, marginRight: 4 }}>📍</span>
+            {buildAddress()}
+          </div>
+        )}
+
+        {/* Gender */}
+        <div style={{ marginBottom: 24 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#c5b3a8', marginBottom: 10 }}>
+            🧬 เพศ *
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {GENDERS.map(g => (
+              <button
+                key={g.value}
+                type="button"
+                onClick={() => setGender(g.value as 'male' | 'female' | 'other')}
+                style={{
+                  padding: '12px 6px', borderRadius: 10, cursor: 'pointer',
+                  border: `2px solid ${gender === g.value ? '#FF6B4A' : 'rgba(255,255,255,0.12)'}`,
+                  background: gender === g.value ? 'rgba(255,107,74,0.15)' : '#2D2520',
+                  color: gender === g.value ? '#FF6B4A' : '#b5a99d',
+                  fontWeight: 600, fontSize: 13, fontFamily: 'inherit',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{ fontSize: 20 }}>{g.emoji}</span>
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div style={{
+            background: 'rgba(255,107,74,0.08)', border: '1px solid rgba(255,107,74,0.3)',
+            borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#FF6B4A', marginBottom: 16,
+          }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: '100%', padding: '14px 0',
+            background: loading ? 'rgba(255,107,74,0.4)' : '#FF6B4A',
+            color: '#fff', border: 'none', borderRadius: 12,
+            fontSize: 16, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
+            boxShadow: '0 4px 16px rgba(255,107,74,0.4)', transition: 'background 0.2s',
+          }}
+        >
+          {loading ? 'กำลังบันทึก...' : 'บันทึกข้อมูล →'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ─── Login / Register ─────────────────────────────────────────────────────────
+
+function LoginScreen({ onLogin: _onLogin }: { onLogin: (member: Member) => void }) {
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err === 'line_denied') setError('ยกเลิกการเข้าสู่ระบบด้วย LINE');
+    else if (err) setError('เกิดข้อผิดพลาดจาก LINE กรุณาลองใหม่');
+  }, []);
+
+  function handleLineLogin() {
+    const clientId = process.env.NEXT_PUBLIC_LINE_CHANNEL_ID;
+    if (!clientId) { setError('LINE Login ยังไม่ได้ตั้งค่า'); return; }
+    const redirectUri = `${window.location.origin}/api/auth/line/callback`;
+    const state = Math.random().toString(36).substring(2, 10);
+    const url = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=profile`;
+    window.location.href = url;
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(160deg, #2D2520 0%, #3D352E 60%, #2D2520 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: '24px 16px',
+    }}>
+      <div style={{ textAlign: 'center', marginBottom: 32, animation: 'mem-fadeInUp 0.4s ease' }}>
+        <div style={{ fontSize: 36, fontWeight: 900, color: '#FF6B4A', letterSpacing: 2 }}>Tuatak</div>
+        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 4, letterSpacing: 3 }}>LOYALTY CARD</div>
       </div>
 
       <div style={{
-        background: '#fff', borderRadius: 20, padding: '28px 24px',
+        background: '#3D352E', borderRadius: 20, padding: '28px 24px',
         width: '100%', maxWidth: 400,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        animation: 'mem-fadeInUp 0.45s ease 0.1s both',
       }}>
-        {lineSetup ? (
-          <>
-            {/* LINE setup mode — link phone to LINE account */}
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              {linePic && (
-                <img
-                  src={linePic}
-                  alt="LINE profile"
-                  style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', marginBottom: 10 }}
-                />
-              )}
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A202C', marginBottom: 4 }}>
-                ยืนยันตัวตนด้วย LINE
-              </h2>
-              <p style={{ fontSize: 13, color: '#718096' }}>กรุณากรอกเบอร์โทรศัพท์เพื่อสมัครสมาชิก</p>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#4A5568', marginBottom: 6 }}>ชื่อ *</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="ชื่อ - นามสกุล"
-                  style={{ width: '100%', padding: '11px 14px', border: '2px solid #E2E8F0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box', color: '#2D3748' }}
-                  onFocus={(e) => (e.target.style.borderColor = '#E53E3E')}
-                  onBlur={(e) => (e.target.style.borderColor = '#E2E8F0')}
-                />
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#4A5568', marginBottom: 6 }}>เบอร์โทรศัพท์ *</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0812345678"
-                  style={{ width: '100%', padding: '11px 14px', border: '2px solid #E2E8F0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box', color: '#2D3748' }}
-                  onFocus={(e) => (e.target.style.borderColor = '#E53E3E')}
-                  onBlur={(e) => (e.target.style.borderColor = '#E2E8F0')}
-                />
-              </div>
-              {error && (
-                <div style={{ background: '#FFF5F5', border: '1px solid #FEB2B2', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: 16 }}>
-                  {error}
-                </div>
-              )}
-              <button
-                type="submit"
-                disabled={loading}
-                style={{ width: '100%', padding: '13px 0', background: loading ? '#68D391' : '#06C755', color: '#fff', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 3px 12px rgba(6,199,85,0.4)', transition: 'background 0.2s' }}
-              >
-                {loading ? 'กำลังดำเนินการ...' : 'ยืนยันและสมัครสมาชิก'}
-              </button>
-            </form>
-          </>
-        ) : (
-          <>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1A202C', marginBottom: 6, textAlign: 'center' }}>
-              สมัครสมาชิก / เข้าสู่ระบบ
-            </h2>
-            <p style={{ fontSize: 13, color: '#718096', textAlign: 'center', marginBottom: 24 }}>
-              กรอกข้อมูลเพื่อสมัครสมาชิกหรือเข้าสู่ระบบ
-            </p>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#ffffff', marginBottom: 6 }}>
+            สมัครสมาชิก / เข้าสู่ระบบ
+          </h2>
+          <p style={{ fontSize: 13, color: '#b5a99d' }}>
+            เข้าสู่ระบบด้วย LINE เพื่อสะสมแต้มและรับสิทธิพิเศษ
+          </p>
+        </div>
 
-            {/* LINE Login Button */}
-            <button
-              onClick={handleLineLogin}
-              style={{
-                width: '100%', padding: '13px 0',
-                background: '#06C755', color: '#fff',
-                border: 'none', borderRadius: 10,
-                fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                boxShadow: '0 3px 12px rgba(6,199,85,0.35)',
-                marginBottom: 16,
-              }}
-            >
-              <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
+        {error && (
+          <div style={{ background: 'rgba(255,107,74,0.08)', border: '1px solid rgba(255,107,74,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#FF6B4A', marginBottom: 16, textAlign: 'center' }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleLineLogin}
+          style={{
+            width: '100%', padding: '14px 0',
+            background: '#06C755', color: '#fff',
+            border: 'none', borderRadius: 12,
+            fontSize: 16, fontWeight: 700, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            boxShadow: '0 4px 16px rgba(6,199,85,0.4)',
+          }}
+        >
+              <svg width="24" height="24" viewBox="0 0 36 36" fill="none">
                 <rect width="36" height="36" rx="8" fill="#fff" fillOpacity="0.2" />
                 <path d="M18 7C11.925 7 7 11.477 7 17.012c0 4.97 4.41 9.129 10.376 9.914.404.087.953.267 1.092.614.125.314.082.806.04 1.124l-.177 1.062c-.054.314-.25 1.23 1.077.671 1.327-.558 7.163-4.22 9.773-7.227C30.822 21.5 31 19.32 31 17.012 31 11.477 24.075 7 18 7z" fill="white" />
                 <path d="M15.2 19.8h-2.5v-5H14v3.8h1.2v1.2zm1.6 0h-1.2v-5h1.2v5zm4.8 0h-1.2l-2-3.1v3.1h-1.2v-5h1.2l2 3.1v-3.1h1.2v5zm3.8-3.8h-2v.8h2v1.2h-2v.8h2v1.2h-3.2v-5h3.2v1z" fill="#06C755" />
               </svg>
               เข้าสู่ระบบด้วย LINE
-            </button>
+        </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-              <span style={{ fontSize: 12, color: '#A0AEC0' }}>หรือ</span>
-              <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#4A5568', marginBottom: 6 }}>
-                  เบอร์โทรศัพท์ *
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0812345678"
-                  style={{ width: '100%', padding: '11px 14px', border: '2px solid #E2E8F0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box', color: '#2D3748' }}
-                  onFocus={(e) => (e.target.style.borderColor = '#E53E3E')}
-                  onBlur={(e) => (e.target.style.borderColor = '#E2E8F0')}
-                />
-              </div>
-
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#4A5568', marginBottom: 6 }}>
-                  ชื่อ - นามสกุล *
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="กรุณากรอกชื่อ"
-                  style={{ width: '100%', padding: '11px 14px', border: '2px solid #E2E8F0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box', color: '#2D3748' }}
-                  onFocus={(e) => (e.target.style.borderColor = '#E53E3E')}
-                  onBlur={(e) => (e.target.style.borderColor = '#E2E8F0')}
-                />
-              </div>
-
-              {error && (
-                <div style={{ background: '#FFF5F5', border: '1px solid #FEB2B2', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#C53030', marginBottom: 16 }}>
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{ width: '100%', padding: '13px 0', background: loading ? '#FC8181' : '#E53E3E', color: '#fff', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 3px 12px rgba(229,62,62,0.4)', transition: 'background 0.2s' }}
-              >
-                {loading ? 'กำลังดำเนินการ...' : 'เข้าสู่ระบบ / สมัครสมาชิก'}
-              </button>
-            </form>
-          </>
-        )}
+        <p style={{ fontSize: 12, color: '#8a7a72', textAlign: 'center', marginTop: 16 }}>
+          หากยังไม่มีบัญชี ระบบจะสร้างให้อัตโนมัติ
+        </p>
       </div>
     </div>
   );
@@ -1333,9 +1681,9 @@ function BottomNav({ activeTab, onTabChange }: { activeTab: Tab; onTabChange: (t
     <div style={{
       position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
       width: '100%', maxWidth: 480,
-      background: '#fff', borderTop: '1px solid #F3F4F6',
+      background: '#2D2520', borderTop: '1px solid rgba(255,255,255,0.1)',
       display: 'flex',
-      boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
+      boxShadow: '0 -2px 12px rgba(0,0,0,0.4)',
       zIndex: 100,
     }}>
       {NAV_ITEMS.map((item) => {
@@ -1344,24 +1692,26 @@ function BottomNav({ activeTab, onTabChange }: { activeTab: Tab; onTabChange: (t
           <button
             key={item.key}
             onClick={() => onTabChange(item.key)}
+            className="mem-btn-press"
             style={{
               flex: 1, padding: '8px 4px 10px',
               background: 'none', border: 'none', cursor: 'pointer',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              position: 'relative',
+              position: 'relative', transition: 'opacity 0.15s',
             }}
             aria-label={item.label}
           >
             {isActive && (
               <div style={{
                 position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
-                width: 24, height: 3, background: '#E53E3E', borderRadius: 2,
+                width: 24, height: 3, background: '#FF6B4A', borderRadius: 2,
+                animation: 'mem-navDot 0.25s ease',
               }} />
             )}
-            <item.Icon color={isActive ? '#E53E3E' : '#A0AEC0'} />
+            <item.Icon color={isActive ? '#FF6B4A' : '#8a7a72'} />
             <span style={{
               fontSize: 10, fontWeight: isActive ? 700 : 400,
-              color: isActive ? '#E53E3E' : '#A0AEC0',
+              color: isActive ? '#FF6B4A' : '#8a7a72',
             }}>
               {item.label}
             </span>
@@ -1455,12 +1805,78 @@ export default function MemberPage() {
     );
   }
 
+  // Profile not complete — show completion screen
+  if (!member.address || !member.gender) {
+    return (
+      <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh' }}>
+        <ProfileCompleteScreen
+          member={member}
+          onComplete={(updated) => {
+            setMember(updated);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div style={{
       maxWidth: 480, margin: '0 auto',
-      minHeight: '100vh', background: '#F7FAFC',
+      minHeight: '100vh', background: '#2D2520',
       position: 'relative', fontFamily: "'Noto Sans Thai', 'Sarabun', sans-serif",
+      color: '#F5EDE8',
     }}>
+      <style>{`
+        @keyframes mem-fadeInUp {
+          from { opacity: 0; transform: translateY(22px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes mem-fadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes mem-scaleIn {
+          from { opacity: 0; transform: scale(0.94); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes mem-float {
+          0%, 100% { transform: translateY(0px); }
+          50%       { transform: translateY(-7px); }
+        }
+        @keyframes mem-pulse-glow {
+          0%, 100% { box-shadow: 0 4px 20px rgba(255,107,74,0.4); }
+          50%       { box-shadow: 0 8px 36px rgba(255,107,74,0.75), 0 0 60px rgba(255,107,74,0.18); }
+        }
+        @keyframes mem-progress {
+          from { width: 0%; }
+        }
+        @keyframes mem-countPop {
+          0%   { opacity: 0; transform: scale(0.7) translateY(8px); }
+          70%  { transform: scale(1.08) translateY(-2px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes mem-navDot {
+          from { width: 0; opacity: 0; }
+          to   { width: 24px; opacity: 1; }
+        }
+        @keyframes mem-slideRight {
+          from { opacity: 0; transform: translateX(24px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes mem-ripple {
+          0%   { transform: scale(0.95); opacity: 0.8; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes mem-badgePop {
+          0%   { transform: scale(0); opacity: 0; }
+          70%  { transform: scale(1.15); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .mem-btn-press:active { transform: scale(0.96); transition: transform 0.1s; }
+        .mem-tab-btn { transition: all 0.2s ease; }
+        .mem-tab-btn:hover { transform: translateY(-1px); }
+      `}</style>
       {activeTab === 'home' && <TabHome member={member} onRefresh={handleRefresh} onScan={() => setShowScanModal(true)} />}
       {activeTab === 'card' && <TabMemberCard member={member} history={history} onScan={() => setShowScanModal(true)} />}
       {activeTab === 'rewards' && <TabRewards member={member} onPointsUpdate={(pts) => setMember(m => m ? { ...m, points: pts } : m)} />}

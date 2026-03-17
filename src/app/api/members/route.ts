@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
   const pool = await connectToDatabase();
   const [members] = await pool.query(
-    'SELECT id, phone, name, email, points, tier, createdAt FROM members ORDER BY points DESC'
+    'SELECT id, phone, name, email, points, tier, memberNumber, validTill, totalVisits, address, gender, lineUid, linePictureUrl, createdAt FROM members ORDER BY points DESC'
   ) as any;
 
   return NextResponse.json({ members });

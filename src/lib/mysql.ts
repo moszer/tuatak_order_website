@@ -175,6 +175,11 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
       ALTER TABLE members MODIFY COLUMN tier ENUM('bronze', 'silver', 'gold', 'member', 'platinum') NOT NULL DEFAULT 'bronze'
     `).catch(() => { /* ignore if already correct */ });
 
+    // Make phone nullable so LINE-only members can register without phone first
+    await connection.query(`
+      ALTER TABLE members MODIFY COLUMN phone VARCHAR(20) NULL
+    `).catch(() => { /* ignore if already correct */ });
+
     // Add optional columns for extended member profile (idempotent)
     const memberAlters = [
       `ALTER TABLE members ADD COLUMN memberNumber VARCHAR(30) NULL`,
@@ -182,6 +187,8 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
       `ALTER TABLE members ADD COLUMN lineUid VARCHAR(100) NULL`,
       `ALTER TABLE members ADD COLUMN linePictureUrl VARCHAR(500) NULL`,
       `ALTER TABLE members ADD COLUMN totalVisits INT NOT NULL DEFAULT 0`,
+      `ALTER TABLE members ADD COLUMN address VARCHAR(500) NULL`,
+      `ALTER TABLE members ADD COLUMN gender ENUM('male','female','other') NULL`,
     ];
     for (const sql of memberAlters) {
       await connection.query(sql).catch(() => { /* column already exists */ });
@@ -274,6 +281,28 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
         UNIQUE KEY unique_member_coupon (member_id, coupon_id),
         INDEX idx_member_id (member_id),
         INDEX idx_coupon_id (coupon_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Create receipts table to store checkout receipt logs
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS receipts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        tableNumber VARCHAR(50) NOT NULL,
+        paidAt DATETIME NOT NULL,
+        items JSON NOT NULL,
+        bill JSON NULL,
+        foodTotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+        billTotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+        grandTotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+        qrCode VARCHAR(100) NULL,
+        qrPoints INT NOT NULL DEFAULT 0,
+        qrMaxUses INT NOT NULL DEFAULT 0,
+        qrHours DECIMAL(5,1) NOT NULL DEFAULT 0,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_tableNumber (tableNumber),
+        INDEX idx_paidAt (paidAt),
+        INDEX idx_createdAt (createdAt)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
