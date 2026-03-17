@@ -936,7 +936,7 @@ function CouponQrModal({ couponId, couponTitle, discountType, discountValue, onC
               <img src={qrDataUrl} alt="Coupon QR" style={{ display: 'block', width: 200, height: 200 }} />
             </div>
             <div style={{ fontSize: 12, color: '#8a7a72', marginBottom: 20, lineHeight: 1.6 }}>
-              {checking ? '✓ กำลังตรวจสอบ...' : 'ให้พนักงานสแกน QR เพื่อใช้คูปอง'}
+              ให้พนักงานสแกน QR เพื่อใช้คูปอง
             </div>
           </>
         )}
