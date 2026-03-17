@@ -5,7 +5,19 @@ import { AddMenuItemModal, EditMenuItemModal } from '../components/MenuModals';
 import { MenuItem } from '../types';
 import Swal from 'sweetalert2';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+}
+
 export default function MenuPage() {
+  const isMobile = useIsMobile();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [menuLoading, setMenuLoading] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null);
@@ -149,6 +161,9 @@ export default function MenuPage() {
         .menu-search { width:100%; padding:9px 14px 9px 38px; border-radius:8px; border:1px solid #1e293b; background:#0d1117; color:#f1f5f9; font-size:0.82rem; outline:none; transition:border-color 0.15s; font-family:inherit; box-sizing:border-box; }
         .menu-search:focus { border-color:#334155; }
         .menu-search::placeholder { color:#334155; }
+        .menu-card { background:#0d1117; border:1px solid #1a2332; border-radius:10px; padding:14px; display:flex; gap:12px; align-items:flex-start; }
+        .menu-card-body { flex:1; min-width:0; }
+        .menu-card-actions { display:flex; gap:6px; flex-shrink:0; align-items:center; }
       `}} />
 
       {/* Header */}
@@ -203,36 +218,86 @@ export default function MenuPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div style={{ background:'#111827', border:'1px solid #1a2332', borderRadius:'12px', overflow:'hidden' }}>
-        {/* Table header */}
-        <div style={{
-          display:'grid', gridTemplateColumns:'2fr 1fr 120px 100px 80px',
-          padding:'10px 20px', background:'#0d1117', borderBottom:'1px solid #1a2332',
-          gap:'12px',
-        }}>
-          {['ชื่อเมนู', 'หมวดหมู่', 'แท็ก', 'ราคา', ''].map((h, i) => (
-            <div key={i} style={{ color:'#475569', fontSize:'0.72rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.6px', textAlign: i === 3 ? 'right' : 'left' }}>
-              {h}
+      {/* Loading / Empty */}
+      {menuLoading ? (
+        <div style={{ padding:'48px', textAlign:'center' }}>
+          <div style={{ width:'28px', height:'28px', border:'2px solid rgba(16,185,129,0.2)', borderTopColor:'#10b981', borderRadius:'50%', animation:'menu-spin 0.8s linear infinite', margin:'0 auto 12px' }} />
+          <div style={{ color:'#475569', fontSize:'0.82rem' }}>กำลังโหลด...</div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ background:'#111827', border:'1px solid #1a2332', borderRadius:'12px', padding:'48px', textAlign:'center' }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1e293b" strokeWidth="1.5" style={{ display:'block', margin:'0 auto 12px' }}>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <div style={{ color:'#334155', fontSize:'0.875rem' }}>{search || categoryFilter !== 'all' ? 'ไม่พบเมนูที่ค้นหา' : 'ยังไม่มีเมนู'}</div>
+        </div>
+      ) : isMobile ? (
+        /* Mobile cards */
+        <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+          {filtered.map(item => (
+            <div key={item.id} className="menu-card">
+              {item.image ? (
+                <img src={item.image} alt={item.nameTh} style={{ width:'52px', height:'52px', borderRadius:'8px', objectFit:'cover', flexShrink:0, border:'1px solid #1e293b' }} />
+              ) : (
+                <div style={{ width:'52px', height:'52px', borderRadius:'8px', background:'#1e293b', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'22px' }}>🍜</div>
+              )}
+              <div className="menu-card-body">
+                <div style={{ color:'#f1f5f9', fontSize:'0.875rem', fontWeight:600, marginBottom:2 }}>{item.nameTh}</div>
+                <div style={{ color:'#475569', fontSize:'0.72rem', marginBottom:6 }}>{item.name}</div>
+                <div style={{ display:'flex', gap:'4px', flexWrap:'wrap', alignItems:'center' }}>
+                  <span style={{ padding:'2px 8px', borderRadius:'5px', background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.15)', color:'#f97316', fontSize:'0.68rem', fontWeight:600 }}>{item.category}</span>
+                  {item.isPopular && <span style={{ padding:'2px 7px', borderRadius:'4px', background:'rgba(234,179,8,0.08)', border:'1px solid rgba(234,179,8,0.2)', color:'#eab308', fontSize:'0.65rem', fontWeight:600 }}>ยอดนิยม</span>}
+                  {item.isSpicy && <span style={{ padding:'2px 7px', borderRadius:'4px', background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)', color:'#ef4444', fontSize:'0.65rem', fontWeight:600 }}>เผ็ด</span>}
+                  {item.isNew && <span style={{ padding:'2px 7px', borderRadius:'4px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', color:'#10b981', fontSize:'0.65rem', fontWeight:600 }}>ใหม่</span>}
+                  <span style={{ marginLeft:'auto', color:'#10b981', fontSize:'0.9rem', fontWeight:700 }}>
+                    {item.price === 0 ? <span style={{ color:'#475569', fontSize:'0.78rem', fontWeight:500 }}>บุฟเฟ่ต์</span> : `฿${item.price.toLocaleString()}`}
+                  </span>
+                </div>
+              </div>
+              <div className="menu-card-actions">
+                <button className="menu-action" onClick={() => setSelectedMenuItem(item)} title="แก้ไข">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button className="menu-action danger" title="ลบ"
+                  onClick={async () => {
+                    const result = await Swal.fire({
+                      icon: 'warning', title: 'ลบเมนู',
+                      text: `ต้องการลบ "${item.nameTh}" หรือไม่?`,
+                      showCancelButton: true,
+                      confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก',
+                      confirmButtonColor: '#ef4444', cancelButtonColor: '#334155',
+                      reverseButtons: true,
+                      background: '#0d1117', color: '#f1f5f9',
+                    });
+                    if (result.isConfirmed) deleteMenuItem(item.id);
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                </button>
+              </div>
             </div>
           ))}
         </div>
-
-        {/* Rows */}
-        {menuLoading ? (
-          <div style={{ padding:'48px', textAlign:'center' }}>
-            <div style={{ width:'28px', height:'28px', border:'2px solid rgba(16,185,129,0.2)', borderTopColor:'#10b981', borderRadius:'50%', animation:'menu-spin 0.8s linear infinite', margin:'0 auto 12px' }} />
-            <div style={{ color:'#475569', fontSize:'0.82rem' }}>กำลังโหลด...</div>
+      ) : (
+        /* Desktop table */
+        <div style={{ background:'#111827', border:'1px solid #1a2332', borderRadius:'12px', overflow:'hidden' }}>
+          <div style={{
+            display:'grid', gridTemplateColumns:'2fr 1fr 120px 100px 80px',
+            padding:'10px 20px', background:'#0d1117', borderBottom:'1px solid #1a2332',
+            gap:'12px',
+          }}>
+            {['ชื่อเมนู', 'หมวดหมู่', 'แท็ก', 'ราคา', ''].map((h, i) => (
+              <div key={i} style={{ color:'#475569', fontSize:'0.72rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.6px', textAlign: i === 3 ? 'right' : 'left' }}>
+                {h}
+              </div>
+            ))}
           </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ padding:'48px', textAlign:'center' }}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1e293b" strokeWidth="1.5" style={{ display:'block', margin:'0 auto 12px' }}>
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <div style={{ color:'#334155', fontSize:'0.875rem' }}>{search || categoryFilter !== 'all' ? 'ไม่พบเมนูที่ค้นหา' : 'ยังไม่มีเมนู'}</div>
-          </div>
-        ) : (
-          filtered.map(item => (
+          {filtered.map(item => (
             <div key={item.id} className="menu-row" style={{ gridTemplateColumns:'2fr 1fr 120px 100px 80px' }}>
               {/* Name */}
               <div style={{ display:'flex', alignItems:'center', gap:'12px', minWidth:0 }}>
@@ -296,9 +361,9 @@ export default function MenuPage() {
                 </button>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Result count */}
       {!menuLoading && filtered.length > 0 && (
