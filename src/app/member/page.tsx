@@ -837,7 +837,8 @@ interface DBCoupon {
   expires_at: string;
   max_uses: number;
   used_count: number;
-  claimed?: boolean;      // has this member already claimed it?
+  claimed?: boolean;      // true only when member hit per_member_uses limit
+  claimed_count?: number; // how many times this member has claimed
   claimed_at?: string;    // for mine endpoint
   mc_id?: number;
   is_used?: number;
@@ -958,7 +959,8 @@ function CouponCard({ c, isMine, member, redeeming, onRedeem, onShowQr }: {
     const isExpiredCoupon = new Date(c.expires_at).getTime() < Date.now();
     const remaining = c.max_uses > 0 ? c.max_uses - c.used_count : null;
     const canAfford = member.points >= c.points_cost;
-    const isRedeemed = c.claimed || isMine;
+    // claimed=true only when member hit per_member_uses limit; isMine = already in "my coupons"
+    const isRedeemed = isMine; // in available tab: never block redeem button unless limit hit (c.claimed=true)
 
     return (
       <div style={{
@@ -1030,36 +1032,31 @@ function CouponCard({ c, isMine, member, redeeming, onRedeem, onShowQr }: {
             </div>
 
             {/* Action area */}
-            {isMine && c.code ? (
-              // Already claimed — show QR button (if not expired)
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {!isExpiredCoupon ? (
-                  <button
-                    onClick={() => onShowQr(c)}
-                    style={{
-                      padding: '6px 16px', borderRadius: 8, border: 'none',
-                      background: '#FF6B4A', color: '#fff',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 6,
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zm3 3h3v3h-3zm-3 3h3"/></svg>
-                    แสดง QR ใช้คูปอง
-                  </button>
-                ) : (
-                  <span style={{ fontSize: 12, color: '#8a7a72', fontWeight: 600 }}>หมดอายุแล้ว</span>
-                )}
-              </div>
-            ) : isRedeemed && c.code ? (
-              // Claimed from available list
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ background: 'rgba(255,107,74,0.08)', color: '#FF6B4A', fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace' }}>
-                  {c.code}
-                </span>
-                <CouponCopyButton code={c.code} />
-              </div>
+            {isMine ? (
+              // "คูปองของฉัน" tab — show QR button
+              !isExpiredCoupon ? (
+                <button
+                  onClick={() => onShowQr(c)}
+                  style={{
+                    padding: '6px 16px', borderRadius: 8, border: 'none',
+                    background: '#FF6B4A', color: '#fff',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zm3 3h3v3h-3zm-3 3h3"/></svg>
+                  แสดง QR ใช้คูปอง
+                </button>
+              ) : (
+                <span style={{ fontSize: 12, color: '#8a7a72', fontWeight: 600 }}>หมดอายุแล้ว</span>
+              )
+            ) : c.claimed ? (
+              // Available tab — member hit per_member_uses limit
+              <span style={{ fontSize: 12, color: '#8a7a72', fontWeight: 600, padding: '4px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                แลกครบแล้ว ✓
+              </span>
             ) : (
-              // Not yet claimed — show redeem button
+              // Available tab — can still redeem
               <button
                 onClick={() => onRedeem(c)}
                 disabled={redeeming === c.id || !canAfford}

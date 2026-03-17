@@ -42,39 +42,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ coupons: rows });
   }
 
-  // Attach claimed info + code for logged-in member
+  // Attach claimed_count per coupon for this member
   const couponIds = (rows as any[]).map((r: any) => r.id);
-  let claimedMap: Record<number, boolean> = {};
+  let claimedCountMap: Record<number, number> = {};
 
   if (couponIds.length > 0) {
     const placeholders = couponIds.map(() => '?').join(',');
     const [claimed] = await pool.query(
-      `SELECT coupon_id FROM member_coupons WHERE member_id = ? AND coupon_id IN (${placeholders})`,
+      `SELECT coupon_id, COUNT(*) as cnt FROM member_coupons WHERE member_id = ? AND coupon_id IN (${placeholders}) GROUP BY coupon_id`,
       [member.memberId, ...couponIds]
     ) as any;
     for (const row of claimed as any[]) {
-      claimedMap[row.coupon_id] = true;
-    }
-  }
-
-  // For claimed coupons, also return the code
-  const claimedIds = Object.keys(claimedMap).map(Number);
-  let codeMap: Record<number, string> = {};
-  if (claimedIds.length > 0) {
-    const placeholders = claimedIds.map(() => '?').join(',');
-    const [codes] = await pool.query(
-      `SELECT id, code FROM coupons WHERE id IN (${placeholders})`,
-      claimedIds
-    ) as any;
-    for (const row of codes as any[]) {
-      codeMap[row.id] = row.code;
+      claimedCountMap[row.coupon_id] = Number(row.cnt);
     }
   }
 
   const enriched = (rows as any[]).map((c: any) => ({
     ...c,
-    claimed: !!claimedMap[c.id],
-    code: claimedMap[c.id] ? codeMap[c.id] : undefined,
+    claimed_count: claimedCountMap[c.id] || 0,
+    // can_redeem_more: per_member_uses=0 means unlimited, else check count < limit
+    claimed: (claimedCountMap[c.id] || 0) > 0 && (c.per_member_uses > 0 && (claimedCountMap[c.id] || 0) >= c.per_member_uses),
   }));
 
   return NextResponse.json({ coupons: enriched });
