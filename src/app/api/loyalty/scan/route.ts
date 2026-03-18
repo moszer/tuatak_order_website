@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mysql';
 import { getMemberFromCookie } from '@/lib/memberJwt';
+import { randomUUID } from 'crypto';
 
-// POST /api/loyalty/scan — customer scans QR code to earn points
+// POST /api/loyalty/scan — customer scans QR code to earn stamps
 export async function POST(req: NextRequest) {
   const memberPayload = await getMemberFromCookie();
   if (!memberPayload) {
@@ -50,6 +51,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'คุณได้สแกน QR Code นี้ไปแล้ว' }, { status: 400 });
   }
 
+  // Load loyalty settings
+  const [settingRows] = await pool.query('SELECT `key`, `value` FROM loyalty_settings').catch(() => [[]] as any) as any;
+  const settings: Record<string, string> = {};
+  for (const r of settingRows as any[]) settings[r.key] = r.value;
+  const stampGoal = parseInt(settings['stamp_goal'] || '15');
+  const rewardTitle = settings['stamp_reward_title'] || 'ฟรี! บุฟเฟ่ต์ 1 ที่';
+  const rewardDesc = settings['stamp_reward_description'] || 'รางวัลจากการสะสมแสตมป์ครบ';
+  const rewardExpiresHours = parseInt(settings['stamp_reward_expires_hours'] || '720');
+
+  // Load loyalty tiers to compute new tier
+  const [tierRows] = await pool.query('SELECT tier_key, min_points FROM loyalty_tiers ORDER BY min_points DESC').catch(() => [[]] as any) as any;
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -66,16 +79,25 @@ export async function POST(req: NextRequest) {
       [qr.id]
     );
 
-    // Add points to member
+    // Add points to member AND increment totalVisits by 1
     await conn.query(
-      'UPDATE members SET points = points + ? WHERE id = ?',
+      'UPDATE members SET points = points + ?, totalVisits = totalVisits + 1 WHERE id = ?',
       [qr.points_value, memberPayload.memberId]
     );
 
-    // Update tier based on new total
-    const [memberRows] = await conn.query('SELECT points FROM members WHERE id = ?', [memberPayload.memberId]) as any;
+    // Fetch updated member
+    const [memberRows] = await conn.query(
+      'SELECT points, totalVisits FROM members WHERE id = ?',
+      [memberPayload.memberId]
+    ) as any;
     const newPoints = memberRows[0].points;
-    const newTier = newPoints >= 5000 ? 'gold' : newPoints >= 1000 ? 'silver' : 'bronze';
+    const newVisits = memberRows[0].totalVisits;
+
+    // Compute tier from totalVisits using loyalty_tiers.min_points as visit thresholds
+    let newTier = 'member';
+    for (const t of tierRows as any[]) {
+      if (newVisits >= t.min_points) { newTier = t.tier_key; break; }
+    }
     await conn.query('UPDATE members SET tier = ? WHERE id = ?', [newTier, memberPayload.memberId]);
 
     // Record in points_history
@@ -85,6 +107,33 @@ export async function POST(req: NextRequest) {
       [memberPayload.memberId, qr.points_value, qr.label || `สแกน QR Code +${qr.points_value} แต้ม`, qr.id]
     );
 
+    // Check if stamp card is complete (totalVisits is a multiple of stampGoal)
+    let stampCardComplete = false;
+    let rewardCouponCode: string | null = null;
+    if (newVisits > 0 && newVisits % stampGoal === 0) {
+      stampCardComplete = true;
+      // Auto-create a free meal coupon for the member
+      rewardCouponCode = randomUUID().replace(/-/g, '').substring(0, 12).toUpperCase();
+      const expiresAt = new Date(Date.now() + rewardExpiresHours * 3600 * 1000);
+      const [couponResult] = await conn.query(
+        `INSERT INTO coupons (code, title, description, discount_type, discount_value, min_order, points_cost, expires_at, is_active, max_uses, per_member_uses)
+         VALUES (?, ?, ?, 'fixed', 0, 0, 0, ?, 1, 1, 1)`,
+        [
+          rewardCouponCode,
+          rewardTitle,
+          `${rewardDesc} (ครั้งที่ ${newVisits / stampGoal})`,
+          expiresAt,
+        ]
+      ) as any;
+      // Auto-claim coupon for this member
+      await conn.query(
+        `INSERT INTO member_coupons (member_id, coupon_id, points_spent) VALUES (?, ?, 0)`,
+        [memberPayload.memberId, couponResult.insertId]
+      );
+    }
+
+    const currentStamps = newVisits % stampGoal;
+
     await conn.commit();
 
     return NextResponse.json({
@@ -92,6 +141,11 @@ export async function POST(req: NextRequest) {
       points_earned: qr.points_value,
       new_total: newPoints,
       new_tier: newTier,
+      new_visits: newVisits,
+      current_stamps: currentStamps,
+      stamp_goal: stampGoal,
+      stamp_card_complete: stampCardComplete,
+      reward_coupon_code: rewardCouponCode,
       label: qr.label,
     });
   } catch (err) {
