@@ -56,34 +56,31 @@ function getTierLabel(tier: string): string {
 
 interface LoyaltyTierConfig { id: number; tier_key: string; tier_name: string; min_points: number; color: string; benefits: string[]; sort_order: number; }
 
-// Tier is based on totalVisits (min_points = min visits required)
-function getTierFromVisits(visits: number, tiers?: LoyaltyTierConfig[]): string {
+function getTierFromPoints(points: number, tiers?: LoyaltyTierConfig[]): string {
   if (tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => b.min_points - a.min_points);
-    const t = sorted.find(t => visits >= t.min_points);
+    const t = sorted.find(t => points >= t.min_points);
     return t ? t.tier_key : sorted[sorted.length - 1].tier_key;
   }
-  if (visits >= 300) return 'platinum';
-  if (visits >= 150) return 'gold';
-  if (visits >= 60) return 'silver';
+  if (points >= 5000) return 'gold';
+  if (points >= 1000) return 'silver';
   return 'member';
 }
 
-function getNextTierInfo(visits: number, tiers?: LoyaltyTierConfig[]): { nextTier: string; threshold: number; prevThreshold: number } {
+function getNextTierInfo(points: number, tiers?: LoyaltyTierConfig[]): { nextTier: string; threshold: number; prevThreshold: number } {
   if (tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => a.min_points - b.min_points);
     for (let i = 0; i < sorted.length; i++) {
       const next = sorted[i + 1];
-      if (!next || visits < next.min_points) {
+      if (!next || points < next.min_points) {
         if (!next) return { nextTier: 'MAX', threshold: sorted[i].min_points, prevThreshold: sorted[i].min_points };
         return { nextTier: next.tier_name, threshold: next.min_points, prevThreshold: sorted[i].min_points };
       }
     }
   }
-  if (visits < 60)  return { nextTier: 'SILVER',   threshold: 60,  prevThreshold: 0 };
-  if (visits < 150) return { nextTier: 'GOLD',      threshold: 150, prevThreshold: 60 };
-  if (visits < 300) return { nextTier: 'PLATINUM',  threshold: 300, prevThreshold: 150 };
-  return { nextTier: 'MAX', threshold: 300, prevThreshold: 300 };
+  if (points < 1000) return { nextTier: 'SILVER', threshold: 1000, prevThreshold: 0 };
+  if (points < 5000) return { nextTier: 'GOLD', threshold: 5000, prevThreshold: 1000 };
+  return { nextTier: 'MAX', threshold: 5000, prevThreshold: 5000 };
 }
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
@@ -272,13 +269,10 @@ function MemberCard({ member }: { member: Member }) {
 
 type ScanState = 'idle' | 'scanning' | 'processing' | 'success' | 'error';
 
-interface ScanResult { points_earned: number; new_visits: number; current_stamps: number; stamp_goal: number; stamp_card_complete: boolean; }
-
 function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (pts: number) => void }) {
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [message, setMessage] = useState('');
   const [pointsEarned, setPointsEarned] = useState(0);
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [debugMsg, setDebugMsg] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -308,7 +302,6 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       const data = await res.json();
       if (res.ok) {
         setPointsEarned(data.points_earned);
-        setScanResult({ points_earned: data.points_earned, new_visits: data.new_visits ?? 0, current_stamps: data.current_stamps ?? 0, stamp_goal: data.stamp_goal ?? 15, stamp_card_complete: data.stamp_card_complete ?? false });
         setScanState('success');
       } else {
         setMessage(data.error || 'เกิดข้อผิดพลาด');
@@ -376,7 +369,7 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     else { setMessage('ไม่พบ QR Code ในรูปภาพ กรุณาลองใหม่'); setScanState('error'); }
   }, [submitCode]);
 
-  const reset = () => { stopCamera(); processingRef.current = false; setScanState('idle'); setMessage(''); setDebugMsg(''); setScanResult(null); };
+  const reset = () => { stopCamera(); processingRef.current = false; setScanState('idle'); setMessage(''); setDebugMsg(''); };
   const handleClose = () => { stopCamera(); onClose(); };
 
   return (
@@ -396,47 +389,10 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
         {/* Success */}
         {scanState === 'success' && (
-          <div style={{ textAlign: 'center', width: '100%', maxWidth: 360 }}>
-            {scanResult?.stamp_card_complete ? (
-              <>
-                <div style={{ fontSize: 64, marginBottom: 8 }}>🎉🎊🎉</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#F6AD55', marginBottom: 6 }}>ครบ {scanResult.stamp_goal} แสตมป์แล้ว!</div>
-                <div style={{ color: '#68D391', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>ได้รับรางวัลฟรี 1 รายการ!</div>
-                <div style={{ color: '#b5a99d', fontSize: 13, marginBottom: 20 }}>คูปองของรางวัลถูกเพิ่มในรางวัลของคุณแล้ว</div>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 64, marginBottom: 8 }}>🎉</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#68D391', marginBottom: 4 }}>+{pointsEarned} แต้ม!</div>
-                <div style={{ color: '#b5a99d', marginBottom: 16 }}>สะสมแสตมป์สำเร็จ</div>
-              </>
-            )}
-
-            {/* Stamp progress mini-grid */}
-            {scanResult && !scanResult.stamp_card_complete && (
-              <div style={{ background: '#2D2520', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
-                <div style={{ fontSize: 12, color: '#b5a99d', marginBottom: 10 }}>
-                  แสตมป์ปัจจุบัน: <span style={{ color: '#FF6B4A', fontWeight: 700 }}>{scanResult.current_stamps}/{scanResult.stamp_goal}</span>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
-                  {Array.from({ length: scanResult.stamp_goal }).map((_, i) => (
-                    <div key={i} style={{
-                      width: 28, height: 28, borderRadius: '50%',
-                      background: i < scanResult.current_stamps ? 'linear-gradient(135deg,#c44a1a,#FF6B4A)' : 'rgba(255,255,255,0.08)',
-                      border: `2px solid ${i < scanResult.current_stamps ? '#FF6B4A' : 'rgba(255,255,255,0.12)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12,
-                    }}>
-                      {i < scanResult.current_stamps ? '✓' : ''}
-                    </div>
-                  ))}
-                </div>
-                <div style={{ fontSize: 11, color: '#8a7a72', marginTop: 8 }}>
-                  อีก {scanResult.stamp_goal - scanResult.current_stamps} แสตมป์ → ได้รับรางวัลฟรี!
-                </div>
-              </div>
-            )}
-
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 72, marginBottom: 12 }}>🎉</div>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#68D391', marginBottom: 6 }}>+{pointsEarned} แต้ม!</div>
+            <div style={{ color: '#b5a99d', marginBottom: 32 }}>สะสมแต้มสำเร็จ</div>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button onClick={reset} style={{ padding: '11px 22px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.12)', background: '#3D352E', color: '#b5a99d', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>สแกนอีกครั้ง</button>
               <button onClick={() => { onSuccess(pointsEarned); handleClose(); }} style={{ padding: '11px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#c44a1a,#FF6B4A)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>ตกลง</button>
@@ -505,15 +461,14 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
 // ─── Tab: หน้าหลัก ────────────────────────────────────────────────────────────
 
-function TabHome({ member, onRefresh, onScan, tiers, stampGoal }: { member: Member; onRefresh: () => void; onScan: () => void; tiers: LoyaltyTierConfig[]; stampGoal: number }) {
-  const visits = member.totalVisits ?? 0;
-  const tierInfo = getNextTierInfo(visits, tiers);
-  const currentTier = getTierFromVisits(visits, tiers);
+function TabHome({ member, onRefresh, onScan, tiers }: { member: Member; onRefresh: () => void; onScan: () => void; tiers: LoyaltyTierConfig[] }) {
+  const pts = member.points ?? 0;
+  const tierInfo = getNextTierInfo(pts, tiers);
+  const currentTier = getTierFromPoints(pts, tiers);
   const maxTier = tiers.length > 0 ? tiers.reduce((a, b) => a.min_points > b.min_points ? a : b) : null;
-  const isMaxTier = maxTier ? visits >= maxTier.min_points : visits >= 300;
-  const progressPct = isMaxTier ? 100 : Math.min(100, Math.round(((visits - tierInfo.prevThreshold) / (tierInfo.threshold - tierInfo.prevThreshold)) * 100));
-  const remaining = isMaxTier ? 0 : tierInfo.threshold - visits;
-  const currentStamps = stampGoal > 0 ? visits % stampGoal : 0;
+  const isMaxTier = maxTier ? pts >= maxTier.min_points : pts >= 5000;
+  const progressPct = isMaxTier ? 100 : Math.min(100, Math.round(((pts - tierInfo.prevThreshold) / (tierInfo.threshold - tierInfo.prevThreshold)) * 100));
+  const remaining = isMaxTier ? 0 : tierInfo.threshold - pts;
   const [showLocation, setShowLocation] = useState(false);
 
   return (
@@ -555,7 +510,7 @@ function TabHome({ member, onRefresh, onScan, tiers, stampGoal }: { member: Memb
           สแกน QR CODE สะสมคะแนน
         </button>
 
-        {/* Visit progress toward next tier */}
+        {/* Points progress */}
         <div style={{
           background: '#3D352E', borderRadius: 14, padding: 16, marginTop: 16,
           boxShadow: '0 1px 8px rgba(0,0,0,0.35)',
@@ -563,8 +518,7 @@ function TabHome({ member, onRefresh, onScan, tiers, stampGoal }: { member: Memb
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <span style={{ fontWeight: 700, color: '#ffffff', fontSize: 15 }}>คะแนนสะสม</span>
             <span style={{ fontWeight: 800, color: '#FF6B4A', fontSize: 20, animation: 'mem-countPop 0.5s ease 0.2s both' }}>
-              {visits.toLocaleString()}{!isMaxTier && <span style={{ fontWeight: 400, color: '#b5a99d', fontSize: 13 }}>/{tierInfo.threshold} ครั้ง</span>}
-              {isMaxTier && <span style={{ fontWeight: 400, color: '#b5a99d', fontSize: 13 }}> ครั้ง</span>}
+              {pts.toLocaleString()} <span style={{ fontWeight: 400, color: '#b5a99d', fontSize: 13 }}>แต้ม</span>
             </span>
           </div>
           <div style={{ height: 10, background: 'rgba(255,107,74,0.2)', borderRadius: 10, overflow: 'hidden' }}>
@@ -572,50 +526,13 @@ function TabHome({ member, onRefresh, onScan, tiers, stampGoal }: { member: Memb
           </div>
           {!isMaxTier ? (
             <div style={{ marginTop: 8, fontSize: 12, color: '#b5a99d' }}>
-              สะสมอีก <span style={{ color: '#FF6B4A', fontWeight: 700 }}>{remaining.toLocaleString()} ครั้ง</span> เพื่อเลื่อนระดับเป็น {tierInfo.nextTier}
+              สะสมอีก <span style={{ color: '#FF6B4A', fontWeight: 700 }}>{remaining.toLocaleString()} แต้ม</span> เพื่อเลื่อนระดับเป็น {tierInfo.nextTier}
             </div>
           ) : (
             <div style={{ marginTop: 8, fontSize: 12, color: '#FF6B4A', fontWeight: 600 }}>
-              คุณอยู่ในระดับสูงสุดแล้ว 🥇
+              คุณอยู่ในระดับสูงสุด GOLD แล้ว 🥇
             </div>
           )}
-        </div>
-
-        {/* Stamp card */}
-        <div style={{
-          background: '#3D352E', borderRadius: 14, padding: 16, marginTop: 12,
-          boxShadow: '0 1px 8px rgba(0,0,0,0.35)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontWeight: 700, color: '#ffffff', fontSize: 15 }}>บัตรแสตมป์</span>
-            <span style={{ fontSize: 12, color: '#b5a99d' }}>
-              <span style={{ color: '#FF6B4A', fontWeight: 700 }}>{currentStamps}</span>/{stampGoal} ครั้ง
-            </span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, justifyContent: 'center', marginBottom: 10 }}>
-            {Array.from({ length: stampGoal }).map((_, i) => (
-              <div key={i} style={{
-                width: 32, height: 32, borderRadius: '50%',
-                background: i < currentStamps
-                  ? 'linear-gradient(135deg,#c44a1a,#FF6B4A)'
-                  : 'rgba(255,255,255,0.06)',
-                border: `2px solid ${i < currentStamps ? '#FF6B4A' : 'rgba(255,255,255,0.1)'}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 13, fontWeight: 700, color: '#fff',
-                boxShadow: i < currentStamps ? '0 2px 6px rgba(255,107,74,0.4)' : 'none',
-                transition: 'all 0.2s',
-              }}>
-                {i < currentStamps ? '✓' : <span style={{ fontSize: 9, color: '#4a3f38' }}>{i + 1}</span>}
-              </div>
-            ))}
-          </div>
-          <div style={{ textAlign: 'center', fontSize: 12, color: '#b5a99d' }}>
-            {currentStamps === 0
-              ? `ทานครบ ${stampGoal} ครั้ง รับฟรี 1 ที่!`
-              : currentStamps >= stampGoal - 1
-              ? <span style={{ color: '#F6AD55', fontWeight: 700 }}>อีก 1 ครั้งได้รับรางวัล! 🎉</span>
-              : `อีก ${stampGoal - currentStamps} ครั้ง → รับฟรี 1 ที่!`}
-          </div>
         </div>
 
         {/* Quick links */}
@@ -752,14 +669,13 @@ function TabHome({ member, onRefresh, onScan, tiers, stampGoal }: { member: Memb
 function TabMemberCard({ member, history, onScan, tiers }: { member: Member; history: PointsHistory[]; onScan: () => void; tiers: LoyaltyTierConfig[] }) {
   const [innerTab, setInnerTab] = useState<'benefits' | 'history'>('benefits');
 
-  const visits = member.totalVisits ?? 0;
-  const currentTier = getTierFromVisits(visits, tiers);
+  const pts = member.points ?? 0;
+  const currentTier = getTierFromPoints(pts, tiers);
 
   const FALLBACK_TIERS: LoyaltyTierConfig[] = [
-    { id: 0, tier_key: 'member',   tier_name: 'MEMBER',   min_points: 0,   color: '#b5a99d', benefits: ['สะสมแสตมป์ทุกการสแกน QR', 'รับส่วนลด 5% วันเกิด'], sort_order: 0 },
-    { id: 1, tier_key: 'silver',   tier_name: 'SILVER',   min_points: 60,  color: '#94a3b8', benefits: ['ทุกสิทธิ์ของ Member', 'รับส่วนลด 8% วันเกิด', 'ฟรีเครื่องดื่ม 1 แก้ว/เดือน'], sort_order: 1 },
-    { id: 2, tier_key: 'gold',     tier_name: 'GOLD',     min_points: 150, color: '#F6AD55', benefits: ['ทุกสิทธิ์ของ Silver', 'รับส่วนลด 10% วันเกิด', 'ฟรีของหวาน/เดือน'], sort_order: 2 },
-    { id: 3, tier_key: 'platinum', tier_name: 'PLATINUM', min_points: 300, color: '#e2e8f0', benefits: ['ทุกสิทธิ์ของ Gold', 'ฟรีบุฟเฟ่ต์ 1 ครั้ง/ปี', 'บริการพิเศษ VIP'], sort_order: 3 },
+    { id: 0, tier_key: 'member', tier_name: 'MEMBER', min_points: 0,    color: '#b5a99d', benefits: ['สะสมคะแนนทุกการสแกน QR', 'รับส่วนลด 5% วันเกิด'], sort_order: 0 },
+    { id: 1, tier_key: 'silver', tier_name: 'SILVER', min_points: 1000,  color: '#8a7a72', benefits: ['ทุกสิทธิ์ของ Member', 'รับส่วนลด 8% วันเกิด', 'ฟรีเครื่องดื่ม 1 แก้ว/เดือน'], sort_order: 1 },
+    { id: 2, tier_key: 'gold',   tier_name: 'GOLD',   min_points: 5000,  color: '#F6AD55', benefits: ['ทุกสิทธิ์ของ Silver', 'รับส่วนลด 10% วันเกิด', 'ฟรีของหวาน/เดือน'], sort_order: 2 },
   ];
   const activeTiers = tiers.length > 0 ? tiers : FALLBACK_TIERS;
   const tierCards = activeTiers.map(t => ({
@@ -767,7 +683,7 @@ function TabMemberCard({ member, history, onScan, tiers }: { member: Member; his
     key: t.tier_key,
     color: t.color,
     bg: '#3D352E',
-    threshold: t.min_points === 0 ? 'เริ่มต้น' : `${t.min_points.toLocaleString()} ครั้ง`,
+    threshold: `${t.min_points.toLocaleString()} แต้ม`,
     benefits: t.benefits,
   }));
 
@@ -819,8 +735,8 @@ function TabMemberCard({ member, history, onScan, tiers }: { member: Member; his
             {/* Points summary */}
             <div style={{ background: 'linear-gradient(135deg,#c44a1a,#FF6B4A)', borderRadius: 12, padding: '14px 16px', marginBottom: 16, color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 12, opacity: 0.8 }}>จำนวนครั้งที่มาใช้บริการ</div>
-                <div style={{ fontSize: 26, fontWeight: 800 }}>{visits.toLocaleString()} <span style={{ fontSize: 14, fontWeight: 400 }}>ครั้ง</span></div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>คะแนนสะสมของคุณ</div>
+                <div style={{ fontSize: 26, fontWeight: 800 }}>{pts.toLocaleString()} <span style={{ fontSize: 14, fontWeight: 400 }}>แต้ม</span></div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 12, opacity: 0.8 }}>ระดับปัจจุบัน</div>
@@ -867,7 +783,7 @@ function TabMemberCard({ member, history, onScan, tiers }: { member: Member; his
                 ))}
               </div>
               <div style={{ fontSize: 11, color: '#b5a99d', marginTop: 10, textAlign: 'center' }}>
-                {activeTiers.map((t, i) => `${t.tier_name}(${t.min_points === 0 ? 'เริ่มต้น' : t.min_points + ' ครั้ง'})`).join(' → ')}
+                Member (0) → Silver (1,000) → Gold (5,000 แต้ม)
               </div>
             </div>
           </div>
@@ -1941,15 +1857,10 @@ export default function MemberPage() {
   const [showQrCoupon, setShowQrCoupon] = useState<DBCoupon | null>(null);
   const couponSilentRefreshRef = useRef<(() => void) | null>(null);
   const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTierConfig[]>([]);
-  const [stampGoal, setStampGoal] = useState(15);
 
-  // Fetch loyalty tiers config and settings on mount
+  // Fetch loyalty tiers config on mount
   useEffect(() => {
     fetch('/api/loyalty/tiers').then(r => r.json()).then(d => setLoyaltyTiers(d.tiers || [])).catch(() => {});
-    fetch('/api/loyalty/settings').then(r => r.json()).then(d => {
-      const g = parseInt(d.settings?.stamp_goal || '15');
-      if (!isNaN(g) && g > 0) setStampGoal(g);
-    }).catch(() => {});
   }, []);
 
   // Always verify session with server on page load — localStorage is only a cache
@@ -2111,7 +2022,7 @@ export default function MemberPage() {
         .mem-tab-btn { transition: all 0.2s ease; }
         .mem-tab-btn:hover { transform: translateY(-1px); }
       `}</style>
-      {activeTab === 'home' && <TabHome member={member} onRefresh={handleRefresh} onScan={() => setShowScanModal(true)} tiers={loyaltyTiers} stampGoal={stampGoal} />}
+      {activeTab === 'home' && <TabHome member={member} onRefresh={handleRefresh} onScan={() => setShowScanModal(true)} tiers={loyaltyTiers} />}
       {activeTab === 'card' && <TabMemberCard member={member} history={history} onScan={() => setShowScanModal(true)} tiers={loyaltyTiers} />}
       {activeTab === 'rewards' && <TabRewards member={member} onPointsUpdate={(pts) => setMember(m => m ? { ...m, points: pts } : m)} onShowQr={setShowQrCoupon} registerSilentRefresh={(fn) => { couponSilentRefreshRef.current = fn; }} />}
       {activeTab === 'profile' && <TabProfile member={member} onLogout={handleLogout} />}

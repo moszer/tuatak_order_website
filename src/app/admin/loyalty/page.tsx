@@ -64,7 +64,7 @@ function TierEditForm({ tier, onChange, onSave, onCancel, saving, showKey, keyVa
           <input style={inp} value={tier.tier_name} onChange={e => onChange({ ...tier, tier_name: e.target.value.toUpperCase() })} placeholder="เช่น GOLD" />
         </div>
         <div>
-          <label style={lbl}>จำนวนครั้งขั้นต่ำ</label>
+          <label style={lbl}>แต้มขั้นต่ำ</label>
           <input style={inp} type="number" min={0} value={tier.min_points} onChange={e => onChange({ ...tier, min_points: Number(e.target.value) })} />
         </div>
         <div>
@@ -153,13 +153,6 @@ export default function AdminLoyaltyPage() {
   const [showAddTier, setShowAddTier] = useState(false);
   const [newTier, setNewTier] = useState({ tier_key: '', tier_name: '', min_points: 0, color: '#94a3b8', benefits: [''], sort_order: 0 });
 
-  // Settings
-  const [stampGoal, setStampGoal] = useState(15);
-  const [stampGoalInput, setStampGoalInput] = useState('15');
-  const [stampRewardTitle, setStampRewardTitle] = useState('ฟรี! บุฟเฟ่ต์ 1 ที่');
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsMsg, setSettingsMsg] = useState('');
-
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -191,18 +184,9 @@ export default function AdminLoyaltyPage() {
     setLoadingTiers(false);
   }, []);
 
-  const loadSettings = useCallback(async () => {
-    const res = await fetch('/api/loyalty/settings');
-    const data = await res.json();
-    const s = data.settings || {};
-    const g = parseInt(s.stamp_goal || '15');
-    if (!isNaN(g)) { setStampGoal(g); setStampGoalInput(String(g)); }
-    if (s.stamp_reward_title) setStampRewardTitle(s.stamp_reward_title);
-  }, []);
-
   useEffect(() => { loadQrCodes(); }, [loadQrCodes]);
   useEffect(() => { if (activeTab === 'members') loadMembers(); }, [activeTab, loadMembers]);
-  useEffect(() => { if (activeTab === 'tiers') { loadTiers(); loadSettings(); } }, [activeTab, loadTiers, loadSettings]);
+  useEffect(() => { if (activeTab === 'tiers') loadTiers(); }, [activeTab, loadTiers]);
 
   const saveTier = async (tier: LoyaltyTier, updates: Partial<LoyaltyTier>) => {
     setTierSaving(true); setTierError('');
@@ -220,20 +204,6 @@ export default function AdminLoyaltyPage() {
     if (!confirm('ลบ tier นี้?')) return;
     await fetch(`/api/loyalty/tiers/${id}`, { method: 'DELETE' });
     await loadTiers();
-  };
-
-  const saveSettings = async () => {
-    const g = parseInt(stampGoalInput);
-    if (isNaN(g) || g < 1 || g > 100) { setSettingsMsg('จำนวนแสตมป์ต้องอยู่ระหว่าง 1-100'); return; }
-    setSettingsSaving(true); setSettingsMsg('');
-    const res = await fetch('/api/loyalty/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stamp_goal: g, stamp_reward_title: stampRewardTitle }),
-    });
-    if (res.ok) { setStampGoal(g); setSettingsMsg('บันทึกสำเร็จ!'); setTimeout(() => setSettingsMsg(''), 2000); }
-    else setSettingsMsg('เกิดข้อผิดพลาด');
-    setSettingsSaving(false);
   };
 
   const addTier = async () => {
@@ -698,46 +668,8 @@ export default function AdminLoyaltyPage() {
       {/* ── Tiers Tab ─────────────────────────────────────────────────────── */}
       {activeTab === 'tiers' && (
         <div style={{ animation: 'fadeUp 0.3s ease' }}>
-
-          {/* Stamp card settings */}
-          <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: 12, padding: 18, marginBottom: 20 }}>
-            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: '0.95rem', marginBottom: 14 }}>⚙️ ตั้งค่าบัตรแสตมป์</div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div>
-                <label style={{ display: 'block', color: '#64748b', fontSize: '0.72rem', fontWeight: 600, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  จำนวนแสตมป์ต่อรอบ (ปัจจุบัน: {stampGoal})
-                </label>
-                <input
-                  className="ly-admin-input"
-                  type="number" min={1} max={100}
-                  value={stampGoalInput}
-                  onChange={e => setStampGoalInput(e.target.value)}
-                  placeholder="เช่น 15"
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#64748b', fontSize: '0.72rem', fontWeight: 600, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  ชื่อรางวัล (เมื่อครบรอบ)
-                </label>
-                <input
-                  className="ly-admin-input"
-                  value={stampRewardTitle}
-                  onChange={e => setStampRewardTitle(e.target.value)}
-                  placeholder="เช่น ฟรี! บุฟเฟ่ต์ 1 ที่"
-                />
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button onClick={saveSettings} disabled={settingsSaving}
-                style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: settingsSaving ? '#1e293b' : '#fbbf24', color: settingsSaving ? '#475569' : '#0a0f1a', fontSize: '0.82rem', fontWeight: 700, cursor: settingsSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                {settingsSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
-              </button>
-              {settingsMsg && <span style={{ fontSize: '0.8rem', color: settingsMsg.includes('สำเร็จ') ? '#4ade80' : '#f87171' }}>{settingsMsg}</span>}
-            </div>
-          </div>
-
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>จัดการระดับสมาชิก · จำนวนครั้งที่ต้องการ · สิทธิพิเศษ</div>
+            <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>จัดการระดับสมาชิก · ธรณีแต้ม · สิทธิพิเศษ</div>
             <button onClick={() => { setShowAddTier(true); setTierError(''); }}
               style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#fbbf24', color: '#0a0f1a', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -766,7 +698,7 @@ export default function AdminLoyaltyPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ width: 12, height: 12, borderRadius: '50%', background: tier.color, flexShrink: 0 }} />
                           <span style={{ color: tier.color, fontWeight: 800, fontSize: '1rem', letterSpacing: 1 }}>{tier.tier_name}</span>
-                          <span style={{ background: '#1a2332', color: '#475569', fontSize: '0.72rem', padding: '2px 8px', borderRadius: 4 }}>{tier.min_points === 0 ? 'เริ่มต้น' : `ตั้งแต่ ${tier.min_points.toLocaleString()} ครั้ง`}</span>
+                          <span style={{ background: '#1a2332', color: '#475569', fontSize: '0.72rem', padding: '2px 8px', borderRadius: 4 }}>ตั้งแต่ {tier.min_points.toLocaleString()} แต้ม</span>
                         </div>
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                           <button onClick={() => { setEditingTier({ ...tier, benefits: [...tier.benefits] }); setTierError(''); }}
