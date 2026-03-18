@@ -37,8 +37,90 @@ const TIER_EMOJI: Record<string, string> = { bronze: '🥉', silver: '🥈', gol
 
 const BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
+/* ── TierEditForm component ────────────────────────────────────────────────── */
+function TierEditForm({ tier, onChange, onSave, onCancel, saving, showKey, keyValue, onKeyChange }: {
+  tier: { id: number; tier_name: string; min_points: number; color: string; benefits: string[]; sort_order: number };
+  onChange: (t: any) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+  showKey?: boolean;
+  keyValue?: string;
+  onKeyChange?: (v: string) => void;
+}) {
+  const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid #1e293b', background: '#0d1117', color: '#f1f5f9', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+  const lbl: React.CSSProperties = { display: 'block', color: '#64748b', fontSize: '0.7rem', fontWeight: 600, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: showKey ? '1fr 1fr' : '1fr 1fr', gap: 10 }}>
+        {showKey && (
+          <div>
+            <label style={lbl}>tier_key (ภาษาอังกฤษ ตัวพิมพ์เล็ก)</label>
+            <input style={inp} value={keyValue ?? ''} onChange={e => onKeyChange?.(e.target.value.toLowerCase().replace(/\s/g,''))} placeholder="เช่น gold, platinum" />
+          </div>
+        )}
+        <div>
+          <label style={lbl}>ชื่อ Tier</label>
+          <input style={inp} value={tier.tier_name} onChange={e => onChange({ ...tier, tier_name: e.target.value.toUpperCase() })} placeholder="เช่น GOLD" />
+        </div>
+        <div>
+          <label style={lbl}>แต้มขั้นต่ำ</label>
+          <input style={inp} type="number" min={0} value={tier.min_points} onChange={e => onChange({ ...tier, min_points: Number(e.target.value) })} />
+        </div>
+        <div>
+          <label style={lbl}>สีแสดงผล</label>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="color" value={tier.color} onChange={e => onChange({ ...tier, color: e.target.value })}
+              style={{ width: 36, height: 34, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'none', padding: 0 }} />
+            <input style={{ ...inp, flex: 1 }} value={tier.color} onChange={e => onChange({ ...tier, color: e.target.value })} placeholder="#F6AD55" />
+          </div>
+        </div>
+        <div>
+          <label style={lbl}>ลำดับแสดง</label>
+          <input style={inp} type="number" min={0} value={tier.sort_order} onChange={e => onChange({ ...tier, sort_order: Number(e.target.value) })} />
+        </div>
+      </div>
+
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <label style={lbl}>สิทธิพิเศษ</label>
+          <button type="button" onClick={() => onChange({ ...tier, benefits: [...tier.benefits, ''] })}
+            style={{ padding: '3px 10px', borderRadius: 5, border: '1px solid #1e293b', background: 'transparent', color: '#94a3b8', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>+ เพิ่ม</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {tier.benefits.map((b, i) => (
+            <div key={i} style={{ display: 'flex', gap: 6 }}>
+              <input style={{ ...inp, flex: 1 }} value={b} onChange={e => { const arr = [...tier.benefits]; arr[i] = e.target.value; onChange({ ...tier, benefits: arr }); }} placeholder={`สิทธิ์ที่ ${i + 1}`} />
+              <button type="button" onClick={() => { const arr = tier.benefits.filter((_, j) => j !== i); onChange({ ...tier, benefits: arr }); }}
+                style={{ padding: '0 10px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', background: 'transparent', color: '#f87171', fontSize: '0.78rem', cursor: 'pointer' }}>✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+        <button onClick={onCancel} style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #1e293b', background: 'transparent', color: '#64748b', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>ยกเลิก</button>
+        <button onClick={onSave} disabled={saving}
+          style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: saving ? '#1e293b' : '#fbbf24', color: saving ? '#475569' : '#0a0f1a', fontSize: '0.82rem', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface LoyaltyTier {
+  id: number;
+  tier_key: string;
+  tier_name: string;
+  min_points: number;
+  color: string;
+  benefits: string[];
+  sort_order: number;
+}
+
 export default function AdminLoyaltyPage() {
-  const [activeTab, setActiveTab] = useState<'qr' | 'members'>('qr');
+  const [activeTab, setActiveTab] = useState<'qr' | 'members' | 'tiers'>('qr');
   const [qrCodes, setQrCodes] = useState<QRCodeItem[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loadingQr, setLoadingQr] = useState(true);
@@ -61,6 +143,15 @@ export default function AdminLoyaltyPage() {
 
   // Member detail modal
   const [detailMember, setDetailMember] = useState<Member | null>(null);
+
+  // Tiers
+  const [tiers, setTiers] = useState<LoyaltyTier[]>([]);
+  const [loadingTiers, setLoadingTiers] = useState(false);
+  const [editingTier, setEditingTier] = useState<LoyaltyTier | null>(null);
+  const [tierSaving, setTierSaving] = useState(false);
+  const [tierError, setTierError] = useState('');
+  const [showAddTier, setShowAddTier] = useState(false);
+  const [newTier, setNewTier] = useState({ tier_key: '', tier_name: '', min_points: 0, color: '#94a3b8', benefits: [''], sort_order: 0 });
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -85,8 +176,51 @@ export default function AdminLoyaltyPage() {
     setLoadingMembers(false);
   }, []);
 
+  const loadTiers = useCallback(async () => {
+    setLoadingTiers(true);
+    const res = await fetch('/api/loyalty/tiers');
+    const data = await res.json();
+    setTiers(data.tiers || []);
+    setLoadingTiers(false);
+  }, []);
+
   useEffect(() => { loadQrCodes(); }, [loadQrCodes]);
   useEffect(() => { if (activeTab === 'members') loadMembers(); }, [activeTab, loadMembers]);
+  useEffect(() => { if (activeTab === 'tiers') loadTiers(); }, [activeTab, loadTiers]);
+
+  const saveTier = async (tier: LoyaltyTier, updates: Partial<LoyaltyTier>) => {
+    setTierSaving(true); setTierError('');
+    const res = await fetch(`/api/loyalty/tiers/${tier.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (res.ok) { setEditingTier(null); await loadTiers(); }
+    else { const d = await res.json(); setTierError(d.error || 'เกิดข้อผิดพลาด'); }
+    setTierSaving(false);
+  };
+
+  const deleteTier = async (id: number) => {
+    if (!confirm('ลบ tier นี้?')) return;
+    await fetch(`/api/loyalty/tiers/${id}`, { method: 'DELETE' });
+    await loadTiers();
+  };
+
+  const addTier = async () => {
+    setTierSaving(true); setTierError('');
+    const payload = { ...newTier, benefits: newTier.benefits.filter(b => b.trim()) };
+    const res = await fetch('/api/loyalty/tiers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      setShowAddTier(false);
+      setNewTier({ tier_key: '', tier_name: '', min_points: 0, color: '#94a3b8', benefits: [''], sort_order: 0 });
+      await loadTiers();
+    } else { const d = await res.json(); setTierError(d.error || 'เกิดข้อผิดพลาด'); }
+    setTierSaving(false);
+  };
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,6 +322,9 @@ export default function AdminLoyaltyPage() {
         </button>
         <button className={`ly-tab-btn${activeTab === 'members' ? ' active' : ''}`} onClick={() => setActiveTab('members')}>
           สมาชิก ({members.length || '...'})
+        </button>
+        <button className={`ly-tab-btn${activeTab === 'tiers' ? ' active' : ''}`} onClick={() => setActiveTab('tiers')}>
+          ระดับสมาชิก
         </button>
       </div>
 
@@ -528,6 +665,92 @@ export default function AdminLoyaltyPage() {
       )}
 
       {/* QR Preview Modal */}
+      {/* ── Tiers Tab ─────────────────────────────────────────────────────── */}
+      {activeTab === 'tiers' && (
+        <div style={{ animation: 'fadeUp 0.3s ease' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>จัดการระดับสมาชิก · ธรณีแต้ม · สิทธิพิเศษ</div>
+            <button onClick={() => { setShowAddTier(true); setTierError(''); }}
+              style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#fbbf24', color: '#0a0f1a', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              เพิ่ม Tier
+            </button>
+          </div>
+
+          {tierError && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, color: '#f87171', fontSize: '0.82rem' }}>{tierError}</div>}
+
+          {loadingTiers ? (
+            <div style={{ textAlign: 'center', padding: 48, color: '#475569' }}>กำลังโหลด...</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {tiers.map(tier => (
+                <div key={tier.id} style={{ background: '#0a0f1a', border: `2px solid ${tier.color}33`, borderRadius: 12, padding: 16 }}>
+                  {editingTier?.id === tier.id ? (
+                    /* ── Edit form ── */
+                    <TierEditForm tier={editingTier} onChange={setEditingTier}
+                      onSave={() => saveTier(tier, { tier_name: editingTier.tier_name, min_points: editingTier.min_points, color: editingTier.color, benefits: editingTier.benefits, sort_order: editingTier.sort_order })}
+                      onCancel={() => { setEditingTier(null); setTierError(''); }}
+                      saving={tierSaving} />
+                  ) : (
+                    /* ── Display ── */
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 12, height: 12, borderRadius: '50%', background: tier.color, flexShrink: 0 }} />
+                          <span style={{ color: tier.color, fontWeight: 800, fontSize: '1rem', letterSpacing: 1 }}>{tier.tier_name}</span>
+                          <span style={{ background: '#1a2332', color: '#475569', fontSize: '0.72rem', padding: '2px 8px', borderRadius: 4 }}>ตั้งแต่ {tier.min_points.toLocaleString()} แต้ม</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <button onClick={() => { setEditingTier({ ...tier, benefits: [...tier.benefits] }); setTierError(''); }}
+                            style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #1e293b', background: 'transparent', color: '#94a3b8', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit' }}>แก้ไข</button>
+                          <button onClick={() => deleteTier(tier.id)}
+                            style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.25)', background: 'transparent', color: '#f87171', fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit' }}>ลบ</button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {tier.benefits.map((b, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                            <span style={{ color: tier.color, marginTop: 2, flexShrink: 0 }}>•</span>
+                            <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>{b}</span>
+                          </div>
+                        ))}
+                        {tier.benefits.length === 0 && <span style={{ color: '#334155', fontSize: '0.78rem' }}>ยังไม่มีสิทธิพิเศษ</span>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {tiers.length === 0 && (
+                <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: 12, padding: 48, textAlign: 'center', color: '#475569' }}>ยังไม่มี tier</div>
+              )}
+            </div>
+          )}
+
+          {/* Add tier modal */}
+          {showAddTier && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16 }}>
+              <div style={{ background: '#0a0f1a', border: '1px solid #1a2332', borderRadius: 14, width: '100%', maxWidth: 460, padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                  <span style={{ color: '#f1f5f9', fontWeight: 700, fontSize: '1rem' }}>เพิ่ม Tier ใหม่</span>
+                  <button onClick={() => setShowAddTier(false)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 18, cursor: 'pointer' }}>✕</button>
+                </div>
+                {tierError && <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 14, color: '#f87171', fontSize: '0.78rem' }}>{tierError}</div>}
+                <TierEditForm
+                  tier={{ id: 0, ...newTier } as any}
+                  onChange={t => setNewTier({ tier_key: (t as any).tier_key ?? newTier.tier_key, tier_name: t.tier_name, min_points: t.min_points, color: t.color, benefits: t.benefits, sort_order: t.sort_order })}
+                  showKey
+                  onSave={addTier}
+                  onCancel={() => setShowAddTier(false)}
+                  saving={tierSaving}
+                  keyValue={newTier.tier_key}
+                  onKeyChange={v => setNewTier(n => ({ ...n, tier_key: v }))}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {previewQr && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}

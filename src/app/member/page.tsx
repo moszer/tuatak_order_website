@@ -54,16 +54,33 @@ function getTierLabel(tier: string): string {
   }
 }
 
-function getNextTierInfo(points: number): { nextTier: string; threshold: number; prevThreshold: number } {
-  if (points < 1000) return { nextTier: 'SILVER', threshold: 1000, prevThreshold: 0 };
-  if (points < 5000) return { nextTier: 'GOLD', threshold: 5000, prevThreshold: 1000 };
-  return { nextTier: 'MAX', threshold: 5000, prevThreshold: 5000 };
-}
+interface LoyaltyTierConfig { id: number; tier_key: string; tier_name: string; min_points: number; color: string; benefits: string[]; sort_order: number; }
 
-function getTierFromPoints(points: number): string {
+function getTierFromPoints(points: number, tiers?: LoyaltyTierConfig[]): string {
+  if (tiers && tiers.length > 0) {
+    const sorted = [...tiers].sort((a, b) => b.min_points - a.min_points);
+    const t = sorted.find(t => points >= t.min_points);
+    return t ? t.tier_key : sorted[sorted.length - 1].tier_key;
+  }
   if (points >= 5000) return 'gold';
   if (points >= 1000) return 'silver';
   return 'member';
+}
+
+function getNextTierInfo(points: number, tiers?: LoyaltyTierConfig[]): { nextTier: string; threshold: number; prevThreshold: number } {
+  if (tiers && tiers.length > 0) {
+    const sorted = [...tiers].sort((a, b) => a.min_points - b.min_points);
+    for (let i = 0; i < sorted.length; i++) {
+      const next = sorted[i + 1];
+      if (!next || points < next.min_points) {
+        if (!next) return { nextTier: 'MAX', threshold: sorted[i].min_points, prevThreshold: sorted[i].min_points };
+        return { nextTier: next.tier_name, threshold: next.min_points, prevThreshold: sorted[i].min_points };
+      }
+    }
+  }
+  if (points < 1000) return { nextTier: 'SILVER', threshold: 1000, prevThreshold: 0 };
+  if (points < 5000) return { nextTier: 'GOLD', threshold: 5000, prevThreshold: 1000 };
+  return { nextTier: 'MAX', threshold: 5000, prevThreshold: 5000 };
 }
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
@@ -444,11 +461,12 @@ function QrScanModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
 // ─── Tab: หน้าหลัก ────────────────────────────────────────────────────────────
 
-function TabHome({ member, onRefresh, onScan }: { member: Member; onRefresh: () => void; onScan: () => void }) {
+function TabHome({ member, onRefresh, onScan, tiers }: { member: Member; onRefresh: () => void; onScan: () => void; tiers: LoyaltyTierConfig[] }) {
   const pts = member.points ?? 0;
-  const tierInfo = getNextTierInfo(pts);
-  const currentTier = getTierFromPoints(pts);
-  const isMaxTier = pts >= 5000;
+  const tierInfo = getNextTierInfo(pts, tiers);
+  const currentTier = getTierFromPoints(pts, tiers);
+  const maxTier = tiers.length > 0 ? tiers.reduce((a, b) => a.min_points > b.min_points ? a : b) : null;
+  const isMaxTier = maxTier ? pts >= maxTier.min_points : pts >= 5000;
   const progressPct = isMaxTier ? 100 : Math.min(100, Math.round(((pts - tierInfo.prevThreshold) / (tierInfo.threshold - tierInfo.prevThreshold)) * 100));
   const remaining = isMaxTier ? 0 : tierInfo.threshold - pts;
   const [showLocation, setShowLocation] = useState(false);
@@ -648,38 +666,26 @@ function TabHome({ member, onRefresh, onScan }: { member: Member; onRefresh: () 
 
 // ─── Tab: บัตรสมาชิก ──────────────────────────────────────────────────────────
 
-function TabMemberCard({ member, history, onScan }: { member: Member; history: PointsHistory[]; onScan: () => void }) {
+function TabMemberCard({ member, history, onScan, tiers }: { member: Member; history: PointsHistory[]; onScan: () => void; tiers: LoyaltyTierConfig[] }) {
   const [innerTab, setInnerTab] = useState<'benefits' | 'history'>('benefits');
 
   const pts = member.points ?? 0;
-  const currentTier = getTierFromPoints(pts);
+  const currentTier = getTierFromPoints(pts, tiers);
 
-  const tierCards = [
-    {
-      tier: 'MEMBER',
-      key: 'member',
-      color: '#b5a99d',
-      bg: '#3D352E',
-      threshold: '0 แต้ม',
-      benefits: ['สะสมคะแนนทุกการสแกน QR', 'รับส่วนลด 5% วันเกิด'],
-    },
-    {
-      tier: 'SILVER',
-      key: 'silver',
-      color: '#8a7a72',
-      bg: '#4D443C',
-      threshold: '1,000 แต้ม',
-      benefits: ['ทุกสิทธิ์ของ Member', 'รับส่วนลด 8% วันเกิด', 'ฟรีเครื่องดื่ม 1 แก้ว/เดือน'],
-    },
-    {
-      tier: 'GOLD',
-      key: 'gold',
-      color: '#F6AD55',
-      bg: '#3D3520',
-      threshold: '5,000 แต้ม',
-      benefits: ['ทุกสิทธิ์ของ Silver', 'รับส่วนลด 10% วันเกิด', 'ฟรีของหวาน/เดือน'],
-    },
+  const FALLBACK_TIERS: LoyaltyTierConfig[] = [
+    { id: 0, tier_key: 'member', tier_name: 'MEMBER', min_points: 0,    color: '#b5a99d', benefits: ['สะสมคะแนนทุกการสแกน QR', 'รับส่วนลด 5% วันเกิด'], sort_order: 0 },
+    { id: 1, tier_key: 'silver', tier_name: 'SILVER', min_points: 1000,  color: '#8a7a72', benefits: ['ทุกสิทธิ์ของ Member', 'รับส่วนลด 8% วันเกิด', 'ฟรีเครื่องดื่ม 1 แก้ว/เดือน'], sort_order: 1 },
+    { id: 2, tier_key: 'gold',   tier_name: 'GOLD',   min_points: 5000,  color: '#F6AD55', benefits: ['ทุกสิทธิ์ของ Silver', 'รับส่วนลด 10% วันเกิด', 'ฟรีของหวาน/เดือน'], sort_order: 2 },
   ];
+  const activeTiers = tiers.length > 0 ? tiers : FALLBACK_TIERS;
+  const tierCards = activeTiers.map(t => ({
+    tier: t.tier_name,
+    key: t.tier_key,
+    color: t.color,
+    bg: '#3D352E',
+    threshold: `${t.min_points.toLocaleString()} แต้ม`,
+    benefits: t.benefits,
+  }));
 
   return (
     <div style={{ paddingBottom: 80, animation: 'mem-fadeInUp 0.35s ease' }}>
@@ -1850,6 +1856,12 @@ export default function MemberPage() {
   // CouponQrModal lives here (above TabRewards) so re-renders of TabRewards can't close it
   const [showQrCoupon, setShowQrCoupon] = useState<DBCoupon | null>(null);
   const couponSilentRefreshRef = useRef<(() => void) | null>(null);
+  const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTierConfig[]>([]);
+
+  // Fetch loyalty tiers config on mount
+  useEffect(() => {
+    fetch('/api/loyalty/tiers').then(r => r.json()).then(d => setLoyaltyTiers(d.tiers || [])).catch(() => {});
+  }, []);
 
   // Always verify session with server on page load — localStorage is only a cache
   useEffect(() => {
@@ -2010,8 +2022,8 @@ export default function MemberPage() {
         .mem-tab-btn { transition: all 0.2s ease; }
         .mem-tab-btn:hover { transform: translateY(-1px); }
       `}</style>
-      {activeTab === 'home' && <TabHome member={member} onRefresh={handleRefresh} onScan={() => setShowScanModal(true)} />}
-      {activeTab === 'card' && <TabMemberCard member={member} history={history} onScan={() => setShowScanModal(true)} />}
+      {activeTab === 'home' && <TabHome member={member} onRefresh={handleRefresh} onScan={() => setShowScanModal(true)} tiers={loyaltyTiers} />}
+      {activeTab === 'card' && <TabMemberCard member={member} history={history} onScan={() => setShowScanModal(true)} tiers={loyaltyTiers} />}
       {activeTab === 'rewards' && <TabRewards member={member} onPointsUpdate={(pts) => setMember(m => m ? { ...m, points: pts } : m)} onShowQr={setShowQrCoupon} registerSilentRefresh={(fn) => { couponSilentRefreshRef.current = fn; }} />}
       {activeTab === 'profile' && <TabProfile member={member} onLogout={handleLogout} />}
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />

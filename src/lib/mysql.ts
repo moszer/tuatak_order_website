@@ -314,6 +314,31 @@ export async function connectToDatabase(): Promise<mysql.Pool> {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS loyalty_tiers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        tier_key VARCHAR(50) NOT NULL UNIQUE,
+        tier_name VARCHAR(100) NOT NULL,
+        min_points INT NOT NULL DEFAULT 0,
+        color VARCHAR(20) NOT NULL DEFAULT '#b5a99d',
+        benefits JSON NOT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Seed default loyalty tiers
+    const [existingTiers] = await connection.query('SELECT COUNT(*) as count FROM loyalty_tiers') as any;
+    if (existingTiers[0].count === 0) {
+      await connection.query(`
+        INSERT INTO loyalty_tiers (tier_key, tier_name, min_points, color, benefits, sort_order) VALUES
+        ('member', 'MEMBER', 0, '#b5a99d', '["สะสมคะแนนทุกการสแกน QR","รับส่วนลด 5% วันเกิด"]', 0),
+        ('silver', 'SILVER', 1000, '#8a7a72', '["ทุกสิทธิ์ของ Member","รับส่วนลด 8% วันเกิด","ฟรีเครื่องดื่ม 1 แก้ว/เดือน"]', 1),
+        ('gold', 'GOLD', 5000, '#F6AD55', '["ทุกสิทธิ์ของ Silver","รับส่วนลด 10% วันเกิด","ฟรีของหวาน/เดือน"]', 2)
+      `);
+    }
+
     // Insert default admin user if users table is empty (password: admin123)
     const [existingUsers] = await connection.query('SELECT COUNT(*) as count FROM users') as any;
     if (existingUsers[0].count === 0) {
