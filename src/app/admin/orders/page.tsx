@@ -32,6 +32,7 @@ export default function OrdersPage() {
   const [soundEnabled] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [tableBills, setTableBills] = useState<Record<string, any>>({});
+  const [tableStatuses, setTableStatuses] = useState<Record<string, boolean>>({});
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousOrderIdsRef = useRef<Set<string>>(new Set());
@@ -110,11 +111,14 @@ export default function OrdersPage() {
 
   const fetchTableBills = async () => {
     try {
-      const response = await fetch('/api/tables/bill');
-      const data = await response.json();
-      if (data.success && data.bills) {
+      const [billsRes, statusRes] = await Promise.all([
+        fetch('/api/tables/bill'),
+        fetch('/api/tables/status'),
+      ]);
+      const billsData = await billsRes.json();
+      if (billsData.success && billsData.bills) {
         const billsMap: Record<string, any> = {};
-        data.bills.forEach((bill: any) => {
+        billsData.bills.forEach((bill: any) => {
           billsMap[bill.tableNumber] = {
             adultCount: bill.adultCount || 0,
             child120Count: bill.child120Count || 0,
@@ -127,6 +131,12 @@ export default function OrdersPage() {
           };
         });
         setTableBills(billsMap);
+      }
+      const statusData = await statusRes.json();
+      if (statusData.success && statusData.tables) {
+        const statusMap: Record<string, boolean> = {};
+        statusData.tables.forEach((t: any) => { statusMap[String(t.tableNumber)] = Boolean(t.isReady); });
+        setTableStatuses(statusMap);
       }
     } catch (error) {
       console.error('Error fetching table bills:', error);
@@ -501,7 +511,15 @@ export default function OrdersPage() {
     return acc;
   }, {});
 
-  const tableNumbers = Object.keys(tableGroups).sort((a, b) => Number(a) - Number(b));
+  // Include tables that are open (ready) even with no orders — but only when showing "all"
+  const orderTableNums = new Set(Object.keys(tableGroups));
+  const readyEmptyTables = filterStatus === 'all'
+    ? Object.entries(tableStatuses)
+        .filter(([tbl, ready]) => ready && !orderTableNums.has(tbl))
+        .map(([tbl]) => tbl)
+    : [];
+  const tableNumbers = [...Object.keys(tableGroups), ...readyEmptyTables]
+    .sort((a, b) => Number(a) - Number(b));
 
   return (
     <div style={{ minHeight: '100vh', background: '#0d1117', padding: isMobile ? '16px' : '24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -801,7 +819,7 @@ export default function OrdersPage() {
       {!loading && tableNumbers.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {tableNumbers.map(tableNum => {
-            const tableOrders = tableGroups[tableNum];
+            const tableOrders = tableGroups[tableNum] || [];
             const tableBill = tableBills[tableNum] || null;
             const foodTotal = tableOrders.reduce((sum, o) => sum + o.totalPrice, 0);
             const billTotal = tableBill ? (tableBill.totalPrice || calculateExpectedBillTotal(tableBill)) : 0;
@@ -940,6 +958,11 @@ export default function OrdersPage() {
 
                 {/* ORDERS LIST */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {tableOrders.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '20px 0', color: '#334155', fontSize: '0.82rem' }}>
+                      ยังไม่มีคำสั่งซื้อ
+                    </div>
+                  )}
                   {tableOrders.map(order => {
                     const cfg = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG];
                     const orderTime = new Date(order.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
