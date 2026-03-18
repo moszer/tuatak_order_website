@@ -202,16 +202,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   const playSound = () => {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const play = (f: number, d: number, t: number) => {
-        const o = ctx.createOscillator(); const g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.frequency.value = f; o.type = 'sine';
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 0.01);
-        g.gain.exponentialRampToValueAtTime(0.01, t + d);
-        o.start(t); o.stop(t + d);
-      };
-      play(523.25, 0.2, 0); play(659.25, 0.3, 0.15);
+      const audio = new Audio('/notify.mp3');
+      audio.play().catch(() => {});
     } catch { /* ignore */ }
   };
 
