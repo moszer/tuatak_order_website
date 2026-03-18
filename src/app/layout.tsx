@@ -18,6 +18,13 @@ export const metadata: Metadata = {
   // ลบ icons ออก หรือไม่ต้องระบุ Next.js จะใช้ favicon.ico อัตโนมัติ
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
