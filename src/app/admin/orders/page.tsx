@@ -35,6 +35,7 @@ export default function OrdersPage() {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousOrderIdsRef = useRef<Set<string>>(new Set());
+  const isInitialFetchRef = useRef(true);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
@@ -46,6 +47,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     previousOrderIdsRef.current = new Set();
+    isInitialFetchRef.current = true;
     fetchOrders();
 
     intervalRef.current = setInterval(() => {
@@ -122,62 +124,64 @@ export default function OrdersPage() {
 
       if (newOrders.length > 0) {
         const newOrderIds = new Set(newOrders.map(o => o._id));
-        const previousSize = previousOrderIdsRef.current.size;
 
-        const isFirstOrder = previousSize === 0 && newOrders.length > 0;
-        const hasNewOrder = previousSize > 0 && Array.from(newOrderIds).some(id => !previousOrderIdsRef.current.has(id));
+        if (isInitialFetchRef.current) {
+          // First load after page open/reload — just seed the set, no notification
+          isInitialFetchRef.current = false;
+        } else {
+          const hasNewOrder = Array.from(newOrderIds).some(id => !previousOrderIdsRef.current.has(id));
 
-        if (isFirstOrder || hasNewOrder) {
-          if (soundEnabled) playNotificationSound();
+          if (hasNewOrder) {
+            if (soundEnabled) playNotificationSound();
 
-          const newOrderList = newOrders.filter(order =>
-            previousSize === 0 || !previousOrderIdsRef.current.has(order._id)
-          );
+            const newOrderList = newOrders.filter(order => !previousOrderIdsRef.current.has(order._id));
 
-          newOrderList.forEach(order => {
-            const orderItems = order.items.slice(0, 3).map(item =>
-              `${item.nameTh} x${item.quantity}`
-            ).join(', ');
-            const moreItems = order.items.length > 3 ? ` และอีก ${order.items.length - 3} รายการ` : '';
-            const timeStr = new Date(order.createdAt).toLocaleTimeString('th-TH', {
-              hour: '2-digit',
-              minute: '2-digit',
+            newOrderList.forEach(order => {
+              const orderItems = order.items.slice(0, 3).map(item =>
+                `${item.nameTh} x${item.quantity}`
+              ).join(', ');
+              const moreItems = order.items.length > 3 ? ` และอีก ${order.items.length - 3} รายการ` : '';
+              const timeStr = new Date(order.createdAt).toLocaleTimeString('th-TH', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: `🆕 คำสั่งซื้อใหม่! โต๊ะ ${order.tableNumber}`,
+                html: `
+                  <div style="text-align: left; font-size: 0.9rem; color: #a1a1a1; margin-top: 8px;">
+                    <div style="margin-bottom: 4px;">
+                      ${order.items.length} รายการ • ฿${order.totalPrice.toLocaleString()}
+                    </div>
+                    <div style="color: #fff; font-weight: 500;">
+                      ${orderItems}${moreItems}
+                    </div>
+                    <div style="margin-top: 4px; font-size: 0.85rem; color: #737373;">
+                      ${timeStr}
+                    </div>
+                  </div>
+                `,
+                showConfirmButton: false,
+                timer: 5000,
+                timerProgressBar: true,
+                background: '#1a1a1a',
+                color: '#fff',
+                iconColor: '#10b981',
+                didOpen: (toast) => {
+                  toast.style.cursor = 'pointer';
+                  toast.addEventListener('click', () => {
+                    setSelectedOrder(order);
+                    Swal.close();
+                  });
+                },
+              });
             });
-
-            Swal.fire({
-              toast: true,
-              position: 'top-end',
-              icon: 'info',
-              title: `🆕 คำสั่งซื้อใหม่! โต๊ะ ${order.tableNumber}`,
-              html: `
-                <div style="text-align: left; font-size: 0.9rem; color: #a1a1a1; margin-top: 8px;">
-                  <div style="margin-bottom: 4px;">
-                    ${order.items.length} รายการ • ฿${order.totalPrice.toLocaleString()}
-                  </div>
-                  <div style="color: #fff; font-weight: 500;">
-                    ${orderItems}${moreItems}
-                  </div>
-                  <div style="margin-top: 4px; font-size: 0.85rem; color: #737373;">
-                    ${timeStr}
-                  </div>
-                </div>
-              `,
-              showConfirmButton: false,
-              timer: 5000,
-              timerProgressBar: true,
-              background: '#1a1a1a',
-              color: '#fff',
-              iconColor: '#10b981',
-              didOpen: (toast) => {
-                toast.style.cursor = 'pointer';
-                toast.addEventListener('click', () => {
-                  setSelectedOrder(order);
-                  Swal.close();
-                });
-              },
-            });
-          });
+          }
         }
+
       }
 
       previousOrderIdsRef.current = new Set(newOrders.map(o => o._id));
