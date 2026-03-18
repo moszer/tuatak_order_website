@@ -36,6 +36,30 @@ export default function OrdersPage() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousOrderIdsRef = useRef<Set<string>>(new Set());
   const isInitialFetchRef = useRef(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockedRef = useRef(false);
+
+  // Preload audio + unlock on first user interaction (browser autoplay policy)
+  useEffect(() => {
+    const audio = new Audio('/notify.mp3');
+    audio.preload = 'auto';
+    audioRef.current = audio;
+
+    const unlock = () => {
+      if (audioUnlockedRef.current) return;
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audioUnlockedRef.current = true;
+      }).catch(() => {});
+    };
+    window.addEventListener('click', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
@@ -75,7 +99,9 @@ export default function OrdersPage() {
   const playNotificationSound = () => {
     if (!soundEnabled) return;
     try {
-      const audio = new Audio('/notify.mp3');
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.currentTime = 0;
       audio.play().catch(() => {});
     } catch (error) {
       console.error('Error playing notification sound:', error);
