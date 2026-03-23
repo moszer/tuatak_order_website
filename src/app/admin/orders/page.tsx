@@ -359,6 +359,14 @@ export default function OrdersPage() {
     if (!result.isConfirmed) return;
 
     // ── Step 3: Process bill + generate QR ───────────────────────────────────
+    Swal.fire({
+      title: 'กำลังประมวลผล...',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
     try {
       // Capture data BEFORE deleting
       const tableOrdersBefore = orders.filter(o => o.tableNumber === tableNumber);
@@ -461,8 +469,10 @@ export default function OrdersPage() {
         }),
       }).catch(() => {});
 
+      Swal.close();
       setReceiptData(receipt);
     } catch (error) {
+      Swal.close();
       console.error('Error checking bill:', error);
       await Swal.fire({
         icon: 'error', title: 'เกิดข้อผิดพลาด',
