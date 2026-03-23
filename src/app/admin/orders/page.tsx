@@ -311,10 +311,10 @@ export default function OrdersPage() {
             <b style="color:#fbbf24;">ใช้ได้คนละ 1 ครั้ง · ${personCount > 0 ? `จำกัด ${personCount} คน (ตามจำนวนในบิล)` : 'ไม่จำกัดจำนวน'}</b>
           </div>
           <label style="display:block; font-size:0.78rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">จำนวนแต้ม</label>
-          <input id="swal-pts" type="number" min="1" max="9999" value="10"
+          <input id="swal-pts" type="number" min="1" max="9999" value="1"
             style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid #374151;background:#111827;color:#f9fafb;font-size:1rem;box-sizing:border-box;margin-bottom:14px;" />
           <label style="display:block; font-size:0.78rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">หมดอายุ (ชั่วโมง)</label>
-          <input id="swal-hrs" type="number" min="1" max="72" value="2"
+          <input id="swal-hrs" type="number" min="1" max="72" value="24"
             style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid #374151;background:#111827;color:#f9fafb;font-size:1rem;box-sizing:border-box;" />
         </div>
       `,
