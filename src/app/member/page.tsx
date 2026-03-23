@@ -11,7 +11,7 @@ interface Member {
   email?: string;
   points: number;
   totalVisits: number;
-  tier: 'member' | 'silver' | 'gold' | 'platinum';
+  tier: 'member' | 'bronze' | 'silver' | 'gold' | 'platinum';
   memberNumber: string;
   validTill: string;
   profileImage?: string;
@@ -47,6 +47,7 @@ function formatDate(dateStr: string): string {
 
 function getTierLabel(tier: string): string {
   switch (tier) {
+    case 'bronze': return 'MEMBER';
     case 'silver': return 'SILVER';
     case 'gold': return 'GOLD';
     case 'platinum': return 'PLATINUM';
@@ -530,7 +531,7 @@ function TabHome({ member, onRefresh, onScan, tiers }: { member: Member; onRefre
             </div>
           ) : (
             <div style={{ marginTop: 8, fontSize: 12, color: '#FF6B4A', fontWeight: 600 }}>
-              คุณอยู่ในระดับสูงสุด GOLD แล้ว 🥇
+              คุณอยู่ในระดับสูงสุด {maxTier?.tier_name || 'GOLD'} แล้ว 🥇
             </div>
           )}
         </div>
@@ -783,7 +784,12 @@ function TabMemberCard({ member, history, onScan, tiers }: { member: Member; his
                 ))}
               </div>
               <div style={{ fontSize: 11, color: '#b5a99d', marginTop: 10, textAlign: 'center' }}>
-                Member (0) → Silver (1,000) → Gold (5,000 แต้ม)
+                {activeTiers.map((t, i) => (
+                  <span key={t.tier_key}>
+                    {t.tier_name} ({t.min_points.toLocaleString()})
+                    {i < activeTiers.length - 1 ? ' → ' : ' แต้ม'}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -1412,7 +1418,7 @@ function ProfileCompleteScreen({ member, onComplete }: { member: Member; onCompl
     fetch(`${GEO_BASE}?type=provinces`)
       .then(r => r.json())
       .then(d => setProvinces(d.data || []))
-      .catch(() => {});
+      .catch((e) => console.error('Failed to load provinces:', e));
   }, []);
 
   // Load districts when province changes
@@ -1422,7 +1428,7 @@ function ProfileCompleteScreen({ member, onComplete }: { member: Member; onCompl
     fetch(`${GEO_BASE}?type=districts&province_code=${selectedProvince.code}`)
       .then(r => r.json())
       .then(d => { setDistricts(d.data || []); setSelectedDistrict(null); setSubdistricts([]); setSelectedSubdistrict(null); setPostalCode(''); })
-      .catch(() => {})
+      .catch((e) => console.error('Failed to load districts:', e))
       .finally(() => setGeoLoading(false));
   }, [selectedProvince]);
 
@@ -1433,7 +1439,7 @@ function ProfileCompleteScreen({ member, onComplete }: { member: Member; onCompl
     fetch(`${GEO_BASE}?type=subdistricts&district_code=${selectedDistrict.code}`)
       .then(r => r.json())
       .then(d => { setSubdistricts(d.data || []); setSelectedSubdistrict(null); setPostalCode(''); })
-      .catch(() => {})
+      .catch((e) => console.error('Failed to load subdistricts:', e))
       .finally(() => setGeoLoading(false));
   }, [selectedDistrict]);
 
@@ -1860,7 +1866,7 @@ export default function MemberPage() {
 
   // Fetch loyalty tiers config on mount
   useEffect(() => {
-    fetch('/api/loyalty/tiers').then(r => r.json()).then(d => setLoyaltyTiers(d.tiers || [])).catch(() => {});
+    fetch('/api/loyalty/tiers').then(r => r.json()).then(d => setLoyaltyTiers(d.tiers || [])).catch((e) => console.error('Failed to load loyalty tiers:', e));
   }, []);
 
   // Always verify session with server on page load — localStorage is only a cache
@@ -1883,7 +1889,8 @@ export default function MemberPage() {
         }
         setHydrated(true);
       })
-      .catch(() => {
+      .catch((e) => {
+        console.error('Failed to verify session:', e);
         localStorage.removeItem(STORAGE_KEY);
         setHydrated(true);
       });
@@ -1902,7 +1909,7 @@ export default function MemberPage() {
           setHistory(data.history || []);
         }
       })
-      .catch(() => {});
+      .catch((e) => console.error('Failed to refresh profile after login:', e));
   }
 
   async function handleLogout() {
@@ -1923,7 +1930,7 @@ export default function MemberPage() {
           setHistory(data.history || []);
         }
       })
-      .catch(() => {});
+      .catch((e) => console.error('Failed to refresh profile:', e));
   }
 
   if (!hydrated) return (

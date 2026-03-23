@@ -75,7 +75,15 @@ export async function POST(req: NextRequest) {
     // Update tier based on new total
     const [memberRows] = await conn.query('SELECT points FROM members WHERE id = ?', [memberPayload.memberId]) as any;
     const newPoints = memberRows[0].points;
-    const newTier = newPoints >= 5000 ? 'gold' : newPoints >= 1000 ? 'silver' : 'bronze';
+    // Use configured tiers from DB (same data the admin panel manages)
+    const [tierRows] = await conn.query('SELECT tier_key, min_points FROM loyalty_tiers ORDER BY min_points DESC') as any;
+    let newTier = 'member';
+    if ((tierRows as any[]).length > 0) {
+      const matched = (tierRows as any[]).find((t: any) => newPoints >= t.min_points);
+      newTier = matched ? matched.tier_key : (tierRows as any[])[(tierRows as any[]).length - 1].tier_key;
+    } else {
+      newTier = newPoints >= 5000 ? 'gold' : newPoints >= 1000 ? 'silver' : 'member';
+    }
     await conn.query('UPDATE members SET tier = ? WHERE id = ?', [newTier, memberPayload.memberId]);
 
     // Record in points_history

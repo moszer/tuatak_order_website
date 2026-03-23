@@ -76,6 +76,19 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       [coupon.points_cost, member.memberId]
     );
 
+    // Recalculate tier after points deduction
+    const [memberRows] = await conn.query('SELECT points FROM members WHERE id = ?', [member.memberId]) as any;
+    const newPoints = memberRows[0].points;
+    const [tierRows] = await conn.query('SELECT tier_key, min_points FROM loyalty_tiers ORDER BY min_points DESC') as any;
+    let newTier = 'member';
+    if ((tierRows as any[]).length > 0) {
+      const matched = (tierRows as any[]).find((t: any) => newPoints >= t.min_points);
+      newTier = matched ? matched.tier_key : (tierRows as any[])[(tierRows as any[]).length - 1].tier_key;
+    } else {
+      newTier = newPoints >= 5000 ? 'gold' : newPoints >= 1000 ? 'silver' : 'member';
+    }
+    await conn.query('UPDATE members SET tier = ? WHERE id = ?', [newTier, member.memberId]);
+
     // Record points history
     if (coupon.points_cost > 0) {
       await conn.query(
@@ -106,12 +119,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   }
 
   // Return updated points + coupon code
-  const [updated] = await pool.query('SELECT points FROM members WHERE id = ?', [member.memberId]) as any;
+  const [updated] = await pool.query('SELECT points, tier FROM members WHERE id = ?', [member.memberId]) as any;
 
   return NextResponse.json({
     success: true,
     code: coupon.code,
     pointsSpent: coupon.points_cost,
     newPoints: (updated as any[])[0].points,
+    newTier: (updated as any[])[0].tier,
   });
 }

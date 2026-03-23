@@ -10,7 +10,7 @@ interface Member {
   name: string;
   email: string | null;
   points: number;
-  tier: 'bronze' | 'silver' | 'gold';
+  tier: string;
   createdAt: string;
 }
 
@@ -23,17 +23,55 @@ interface HistoryItem {
   createdAt: string;
 }
 
-const TIER_CONFIG = {
-  bronze: { label: 'Bronze', color: '#cd7f32', emoji: '🥉', next: 1000, nextLabel: 'Silver' },
-  silver: { label: 'Silver', color: '#94a3b8', emoji: '🥈', next: 5000, nextLabel: 'Gold' },
-  gold: { label: 'Gold', color: '#fbbf24', emoji: '🥇', next: null, nextLabel: null },
+interface LoyaltyTierConfig {
+  id: number;
+  tier_key: string;
+  tier_name: string;
+  min_points: number;
+  color: string;
+  sort_order: number;
+}
+
+const TIER_EMOJI: Record<string, string> = {
+  member: '👤', bronze: '🥉', silver: '🥈', gold: '🥇', platinum: '💎',
 };
+
+const FALLBACK_TIERS: LoyaltyTierConfig[] = [
+  { id: 0, tier_key: 'member', tier_name: 'MEMBER', min_points: 0,   color: '#b5a99d', sort_order: 0 },
+  { id: 1, tier_key: 'silver', tier_name: 'SILVER', min_points: 1000, color: '#8a7a72', sort_order: 1 },
+  { id: 2, tier_key: 'gold',   tier_name: 'GOLD',   min_points: 5000, color: '#F6AD55', sort_order: 2 },
+];
+
+function getTierConf(points: number, tiers: LoyaltyTierConfig[]) {
+  const sorted = [...tiers].sort((a, b) => a.sort_order - b.sort_order);
+  let idx = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    if (points >= sorted[i].min_points) idx = i;
+  }
+  const cur = sorted[idx];
+  const next = sorted[idx + 1] || null;
+  return {
+    color: cur.color,
+    emoji: TIER_EMOJI[cur.tier_key] || '⭐',
+    label: cur.tier_name,
+    next: next ? next.min_points : null,
+    nextLabel: next ? next.tier_name : null,
+  };
+}
 
 export default function ProfilePage() {
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loyaltyTiers, setLoyaltyTiers] = useState<LoyaltyTierConfig[]>([]);
+
+  useEffect(() => {
+    fetch('/api/loyalty/tiers')
+      .then(r => r.json())
+      .then(d => setLoyaltyTiers(d.tiers || []))
+      .catch((e) => console.error('Failed to load loyalty tiers:', e));
+  }, []);
 
   useEffect(() => {
     fetch('/api/members/me')
@@ -66,7 +104,8 @@ export default function ProfilePage() {
 
   if (!member) return null;
 
-  const tierConf = TIER_CONFIG[member.tier];
+  const activeTiers = loyaltyTiers.length > 0 ? loyaltyTiers : FALLBACK_TIERS;
+  const tierConf = getTierConf(member.points, activeTiers);
   const progressPct = tierConf.next
     ? Math.min(100, (member.points / tierConf.next) * 100)
     : 100;

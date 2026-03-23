@@ -25,6 +25,9 @@ export async function GET(req: NextRequest) {
   }
 
   const res = await fetch(url);
+  if (!res.ok) {
+    return NextResponse.json({ error: 'ไม่สามารถโหลดข้อมูลที่อยู่ได้', data: [] }, { status: 502 });
+  }
   const data = await res.json();
   return NextResponse.json(data);
 }

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const memberId = result.insertId;
   const token = signMemberToken({ memberId, phone: cleanPhone, name: name.trim() });
 
-  const res = NextResponse.json({ success: true, memberId, name: name.trim(), phone: cleanPhone, points: 0, tier: 'bronze' });
+  const res = NextResponse.json({ success: true, memberId, name: name.trim(), phone: cleanPhone, points: 0, tier: 'member' });
   res.headers.set('Set-Cookie', setMemberCookieHeader(token));
   return res;
 }
