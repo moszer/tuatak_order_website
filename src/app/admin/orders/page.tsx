@@ -5,7 +5,7 @@ import { Order } from '@/lib/mysql';
 import Swal from 'sweetalert2';
 import QRCode from 'qrcode';
 import ReceiptContent, { ReceiptData } from '@/app/admin/components/ReceiptContent';
-import { buildBTEscPos, printViaBluetooth } from '@/lib/bluetoothPrint';
+import { buildBTEscPos, printViaBluetooth, scanBLEServices } from '@/lib/bluetoothPrint';
 
 interface OrderWithId extends Order {
   _id: string;
@@ -22,6 +22,17 @@ interface OrderWithId extends Order {
 }
 
 
+
+async function scanBluetooth() {
+  try {
+    const info = await scanBLEServices();
+    Swal.fire({ title: 'BLE Services', html: `<pre style="text-align:left;font-size:11px;overflow:auto;max-height:300px">${info}</pre>`, confirmButtonText: 'ตกลง' });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.toLowerCase().includes('cancel'))
+      Swal.fire({ icon: 'error', title: 'Scan ไม่สำเร็จ', text: msg, confirmButtonText: 'ตกลง' });
+  }
+}
 
 async function printBluetooth(data: ReceiptData | null) {
   if (!data) return;
@@ -1355,10 +1366,18 @@ export default function OrdersPage() {
               </button>
               <button
                 onClick={() => printBluetooth(receiptData)}
-                style={{ flex: 1, minWidth: 110, padding: '11px 0', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                style={{ flex: 1, minWidth: 90, padding: '11px 0', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></svg>
-                Bluetooth
+                BT Print
+              </button>
+              <button
+                onClick={scanBluetooth}
+                style={{ flex: 1, minWidth: 90, padding: '11px 0', borderRadius: 8, border: '1px solid #2563eb', background: 'transparent', color: '#2563eb', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                title="Scan BLE services for debugging"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                BT Scan
               </button>
               <button
                 onClick={() => window.print()}

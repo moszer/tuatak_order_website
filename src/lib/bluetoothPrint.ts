@@ -210,6 +210,33 @@ async function getWriteCharacteristic(server: BLEServer): Promise<BLEChar> {
   throw new Error('ไม่พบ characteristic สำหรับพิมพ์ — กรุณาตรวจสอบว่าเครื่องปริ้นรองรับ BLE');
 }
 
+/** Scan device and return list of services + characteristics for debugging */
+export async function scanBLEServices(): Promise<string> {
+  const bt = (navigator as any).bluetooth;
+  const device = await bt.requestDevice({ acceptAllDevices: true, optionalServices: BLE_PROFILES.map(p => p.service) });
+  if (!device.gatt) return 'No GATT';
+  const server = await device.gatt.connect();
+  await new Promise(r => setTimeout(r, 300));
+
+  let result = `Device: ${device.name || 'Unknown'}\n\n`;
+  try {
+    const services = await server.getPrimaryServices();
+    for (const svc of services) {
+      result += `SERVICE: ${svc.uuid}\n`;
+      try {
+        const chars = await svc.getCharacteristics();
+        for (const c of chars) {
+          const props = Object.entries(c.properties as Record<string,boolean>)
+            .filter(([,v]) => v).map(([k]) => k).join(', ');
+          result += `  CHAR: ${c.uuid} [${props}]\n`;
+        }
+      } catch { result += '  (cannot read characteristics)\n'; }
+    }
+  } catch { result += '(cannot read services)\n'; }
+  device.gatt.disconnect();
+  return result;
+}
+
 export async function printViaBluetooth(data: Uint8Array): Promise<void> {
   if (!('bluetooth' in navigator)) {
     throw new Error('เบราว์เซอร์นี้ไม่รองรับ Web Bluetooth\nกรุณาใช้ Chrome หรือ Edge บน Android / Desktop');
