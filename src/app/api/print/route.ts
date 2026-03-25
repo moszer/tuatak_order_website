@@ -23,11 +23,6 @@ function pad(left: string, right: string): string {
   return left + ' '.repeat(Math.max(1, spaces)) + right;
 }
 
-function center(text: string): string {
-  const p = Math.max(0, Math.floor((CHARS - text.length) / 2));
-  return ' '.repeat(p) + text;
-}
-
 function line(char = '-'): string { return char.repeat(CHARS); }
 
 interface PrintPayload {
@@ -48,20 +43,24 @@ interface PrintPayload {
   qrHours: number;
 }
 
+// Right-align `right` at column CHARS, with `left` at start
+function rAlign(right: string): string {
+  return ' '.repeat(Math.max(0, CHARS - right.length)) + right;
+}
+
 function buildEscPos(d: PrintPayload): Buffer {
   const paidAt = new Date(d.paidAt);
   const dateStr = paidAt.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const timeStr = paidAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-  const cmd: string[] = [];
-
-  const push = (s: string) => cmd.push(s);
+  const buf: Buffer[] = [];
+  const push = (s: string) => buf.push(Buffer.from(s, 'utf8'));
+  const pushBuf = (b: Buffer) => buf.push(b);
 
   push(INIT);
-  push('\x1b\x74\x00'); // code page PC437 — switch to UTF-8 via ESC/POS if printer supports
-  push('\x1c\x26');     // kanji/utf8 mode on (some printers)
+  push('\x1c\x26'); // enable multi-byte (Thai UTF-8) on some printers
 
-  // Header
+  // ── Header ──────────────────────────────────────────────
   push(ALIGN_CENTER + BOLD_ON + SIZE_LARGE);
   push('TUATAK SHABU\n');
   push(SIZE_NORMAL + BOLD_OFF);
@@ -69,88 +68,91 @@ function buildEscPos(d: PrintPayload): Buffer {
   push('จ.ปราจีนบุรี  095-395-5532\n');
   push(line('=') + '\n');
 
-  // Info
+  // ── Table / Date / Time ─────────────────────────────────
   push(ALIGN_LEFT);
   push(pad('โต๊ะ', d.tableNumber) + '\n');
   push(pad('วันที่', dateStr) + '\n');
   push(pad('เวลา', timeStr) + '\n');
-  push(line() + '\n');
 
-  // Food items
+  // ── Food items ──────────────────────────────────────────
   if (d.aggregatedItems.length > 0) {
-    push(BOLD_ON + center('-- รายการอาหาร --') + BOLD_OFF + '\n');
+    push(line() + '\n');
+    push(ALIGN_CENTER + BOLD_ON + '-- รายการอาหาร --' + BOLD_OFF + '\n');
+    push(ALIGN_LEFT);
     for (const item of d.aggregatedItems) {
-      const name = item.nameTh.length > 18 ? item.nameTh.slice(0, 17) + '.' : item.nameTh;
-      const qty  = `x${item.quantity}`;
-      const amt  = `${(item.price * item.quantity).toLocaleString()}`;
-      const mid  = CHARS - name.length - amt.length;
-      push(name + ' '.repeat(Math.max(1, mid - qty.length)) + qty + amt + '\n');
+      // Line 1: item name
+      push(item.nameTh + '\n');
+      // Line 2: qty right, amount right  (e.g. "           x3    150")
+      const qty = `x${item.quantity}`;
+      const amt = item.price > 0 ? (item.price * item.quantity).toLocaleString() : '';
+      const right = amt ? `${qty}   ${amt}` : qty;
+      push(rAlign(right) + '\n');
     }
-    push(pad('รวมอาหาร', d.foodTotal.toLocaleString()) + '\n');
-    push(line() + '\n');
+    push(line('-') + '\n');
+    push(BOLD_ON + pad('รวมอาหาร', d.foodTotal > 0 ? d.foodTotal.toLocaleString() : '-') + BOLD_OFF + '\n');
   }
 
-  // Buffet
+  // ── Buffet ──────────────────────────────────────────────
   if (d.bill && d.billTotal > 0) {
-    push(BOLD_ON + center('-- บุฟเฟ่ต์ --') + BOLD_OFF + '\n');
-    if (d.bill.adultCount > 0)
-      push(pad(`ผู้ใหญ่ ${d.bill.adultCount}x${d.bill.adultPrice}`, (d.bill.adultCount * d.bill.adultPrice).toLocaleString()) + '\n');
-    if (d.bill.child120Count > 0)
-      push(pad(`เด็ก>120 ${d.bill.child120Count}x${d.bill.child120Price}`, (d.bill.child120Count * d.bill.child120Price).toLocaleString()) + '\n');
-    if (d.bill.child100Count > 0)
-      push(pad(`เด็กเล็ก ${d.bill.child100Count} คน`, 'ฟรี') + '\n');
-    if (d.bill.drinkRefillCount > 0)
-      push(pad(`รีฟิล ${d.bill.drinkRefillCount}x${d.bill.drinkRefillPrice}`, (d.bill.drinkRefillCount * d.bill.drinkRefillPrice).toLocaleString()) + '\n');
-    push(pad('รวมบุฟเฟ่ต์', d.billTotal.toLocaleString()) + '\n');
     push(line() + '\n');
+    push(ALIGN_CENTER + BOLD_ON + '-- บุฟเฟ่ต์ --' + BOLD_OFF + '\n');
+    push(ALIGN_LEFT);
+    if (d.bill.adultCount > 0)
+      push(pad(`ผู้ใหญ่  ${d.bill.adultCount} คน x ${d.bill.adultPrice}`, (d.bill.adultCount * d.bill.adultPrice).toLocaleString()) + '\n');
+    if (d.bill.child120Count > 0)
+      push(pad(`เด็ก(>120)  ${d.bill.child120Count} คน x ${d.bill.child120Price}`, (d.bill.child120Count * d.bill.child120Price).toLocaleString()) + '\n');
+    if (d.bill.child100Count > 0)
+      push(pad(`เด็กเล็ก  ${d.bill.child100Count} คน`, 'ฟรี') + '\n');
+    if (d.bill.drinkRefillCount > 0)
+      push(pad(`รีฟิล  ${d.bill.drinkRefillCount} แก้ว x ${d.bill.drinkRefillPrice}`, (d.bill.drinkRefillCount * d.bill.drinkRefillPrice).toLocaleString()) + '\n');
+    push(line('-') + '\n');
+    push(BOLD_ON + pad('รวมบุฟเฟ่ต์', d.billTotal.toLocaleString()) + BOLD_OFF + '\n');
   }
 
-  // Grand total
+  // ── Grand total ─────────────────────────────────────────
+  push(line('=') + '\n');
   push(BOLD_ON + SIZE_LARGE);
   push(pad('รวมทั้งหมด', `${d.grandTotal.toLocaleString()} บาท`) + '\n');
   push(SIZE_NORMAL + BOLD_OFF);
   push(line('=') + '\n');
-  push(ALIGN_CENTER + center('** ชำระเงินแล้ว **') + '\n');
+  push(ALIGN_CENTER + '** ชำระเงินแล้ว **\n');
 
-  // QR loyalty (text only — no image)
+  // ── QR Loyalty ──────────────────────────────────────────
   if (d.qrCode && d.qrPoints > 0) {
     push(line() + '\n');
-    push(BOLD_ON + center('* สะสมแต้มลอยัลตี้ *') + BOLD_OFF + '\n');
-    push(center(`รับ ${d.qrPoints} แต้ม`) + '\n');
-    push(center(`ใช้ได้${d.qrMaxUses > 0 ? `${d.qrMaxUses} คน` : 'ไม่จำกัด'} | หมดใน ${d.qrHours} ชม.`) + '\n');
+    push(BOLD_ON + '* สะสมแต้มลอยัลตี้ *' + BOLD_OFF + '\n');
+    push(`รับ ${d.qrPoints} แต้ม\n`);
+    const uses = d.qrMaxUses > 0 ? `${d.qrMaxUses} คน` : 'ไม่จำกัด';
+    push(`ใช้ได้ ${uses}  |  หมดใน ${d.qrHours} ชม.\n\n`);
 
-    // ESC/POS QR code
+    // ESC/POS GS(k QR code — size 4 (moderate)
     const url = `${process.env.NEXT_PUBLIC_APP_URL || 'http://172.20.10.6:3000'}/loyalty/scan?code=${d.qrCode}`;
-    const urlBytes = Buffer.from(url, 'utf8');
-    const pL = (urlBytes.length + 3) & 0xff;
-    const pH = ((urlBytes.length + 3) >> 8) & 0xff;
+    const urlBuf = Buffer.from(url, 'utf8');
+    const dataLen = urlBuf.length + 3;
+    const pL = dataLen & 0xff;
+    const pH = (dataLen >> 8) & 0xff;
 
-    push('\n');
-    // Model 2
-    push(GS + '\x28\x6b\x04\x00\x31\x41\x32\x00');
-    // Size (6 = ~2cm modules)
-    push(GS + '\x28\x6b\x03\x00\x31\x43\x06');
-    // Error correction level H
-    push(GS + '\x28\x6b\x03\x00\x31\x45\x33');
-    // Store data
-    cmd.push(GS + '\x28\x6b');
-    cmd.push(String.fromCharCode(pL, pH));
-    cmd.push('\x31\x50\x30');
-    cmd.push(url);
-    // Print
-    push(GS + '\x28\x6b\x03\x00\x31\x51\x30');
-    push('\n');
-    push(line() + '\n');
+    pushBuf(Buffer.from(GS + '\x28\x6b\x04\x00\x31\x41\x32\x00', 'binary')); // model 2
+    pushBuf(Buffer.from(GS + '\x28\x6b\x03\x00\x31\x43\x04', 'binary'));     // size 4
+    pushBuf(Buffer.from(GS + '\x28\x6b\x03\x00\x31\x45\x31', 'binary'));     // err correction M
+    pushBuf(Buffer.concat([
+      Buffer.from(GS + '\x28\x6b', 'binary'),
+      Buffer.from([pL, pH]),
+      Buffer.from('\x31\x50\x30', 'binary'),
+      urlBuf,
+    ]));
+    pushBuf(Buffer.from(GS + '\x28\x6b\x03\x00\x31\x51\x30', 'binary'));     // print
+    push('\n' + line() + '\n');
   }
 
-  // Footer
+  // ── Footer ──────────────────────────────────────────────
   push(ALIGN_CENTER);
-  push(center('ขอบคุณที่ใช้บริการ') + '\n');
-  push(BOLD_ON + center('TUATAK SHABU') + BOLD_OFF + '\n');
+  push('ขอบคุณที่ใช้บริการ\n');
+  push(BOLD_ON + 'TUATAK SHABU' + BOLD_OFF + '\n');
   push('\n\n\n');
   push(CUT);
 
-  return Buffer.from(cmd.join(''), 'utf8');
+  return Buffer.concat(buf);
 }
 
 function sendToPrinter(data: Buffer): Promise<void> {
