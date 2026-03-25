@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Order } from '@/lib/mysql';
 import Swal from 'sweetalert2';
 import QRCode from 'qrcode';
@@ -1284,24 +1285,24 @@ export default function OrdersPage() {
       )}
 
       {/* ─── Receipt Modal ─────────────────────────────────────────────────── */}
+      {receiptData && createPortal(
+        <div id="receipt-print-area" style={{ display: 'none' }}>
+          <style>{`
+            @media print {
+              body > * { display: none !important; }
+              #receipt-print-area { display: block !important; position: fixed; inset: 0; background: #fff; overflow: auto; }
+            }
+          `}</style>
+          <ReceiptContent data={receiptData} />
+        </div>,
+        document.body
+      )}
+
       {receiptData && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16 }}
           onClick={() => setReceiptData(null)}
         >
-          <style>{`
-            @media print {
-              body > * { display: none !important; }
-              #receipt-print-area { display: block !important; position: fixed; inset: 0; background: #fff; }
-            }
-            #receipt-print-area { display: none; }
-          `}</style>
-
-          {/* Print-only area */}
-          <div id="receipt-print-area">
-            <ReceiptContent data={receiptData} />
-          </div>
-
           {/* Screen modal */}
           <div
             onClick={e => e.stopPropagation()}

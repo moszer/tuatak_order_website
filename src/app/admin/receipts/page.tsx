@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import ReceiptContent, { ReceiptData } from '@/app/admin/components/ReceiptContent';
 
 interface ReceiptRow {
@@ -222,6 +223,20 @@ export default function AdminReceiptsPage() {
             {receipts.length} รายการ · รวม ฿{totalRevenue.toLocaleString()}
           </div>
         </div>
+      )}
+
+      {/* Receipt Portal for print */}
+      {selected && createPortal(
+        <div id="receipt-print-area" style={{ display: 'none' }}>
+          <style>{`
+            @media print {
+              body > * { display: none !important; }
+              #receipt-print-area { display: block !important; position: fixed; inset: 0; background: #fff; overflow: auto; }
+            }
+          `}</style>
+          <ReceiptContent data={selected} />
+        </div>,
+        document.body
       )}
 
       {/* Receipt Modal */}

@@ -15,12 +15,27 @@ export interface ReceiptData {
   foodTotal: number;
   billTotal: number;
   grandTotal: number;
-  // Pass either qrDataUrl (already generated) or qrCode (will generate from code)
   qrDataUrl?: string;
   qrCode?: string;
   qrPoints: number;
   qrMaxUses: number;
   qrHours: number;
+}
+
+const CHARS = 32; // characters per line at 12px Courier on 80mm
+
+function padLine(left: string, right: string): string {
+  const spaces = CHARS - left.length - right.length;
+  return left + ' '.repeat(Math.max(1, spaces)) + right;
+}
+
+function centerText(text: string): string {
+  const pad = Math.max(0, Math.floor((CHARS - text.length) / 2));
+  return ' '.repeat(pad) + text;
+}
+
+function divider(char = '-'): string {
+  return char.repeat(CHARS);
 }
 
 export default function ReceiptContent({ data }: { data: ReceiptData }) {
@@ -33,11 +48,10 @@ export default function ReceiptContent({ data }: { data: ReceiptData }) {
 
   const [qrUrl, setQrUrl] = useState(initialQrUrl || '');
 
-  // Generate QR from code if no data URL provided
   useEffect(() => {
     if (!initialQrUrl && qrCode) {
       const scanUrl = `${window.location.origin}/loyalty/scan?code=${qrCode}`;
-      QRCode.toDataURL(scanUrl, { width: 260, margin: 2, color: { dark: '#000000', light: '#ffffff' } })
+      QRCode.toDataURL(scanUrl, { width: 200, margin: 1, color: { dark: '#000000', light: '#ffffff' } })
         .then(url => setQrUrl(url))
         .catch(() => {});
     }
@@ -46,135 +60,104 @@ export default function ReceiptContent({ data }: { data: ReceiptData }) {
   const dateStr = paidAt.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const timeStr = paidAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-  const solidLine = <div style={{ borderTop: '1px solid #374151', margin: '10px 0' }} />;
-  const dashedLine = <div style={{ borderTop: '1px dashed #9ca3af', margin: '10px 0' }} />;
+  const pre: React.CSSProperties = {
+    fontFamily: "'Courier New', Courier, monospace",
+    fontSize: 12,
+    lineHeight: 1.55,
+    margin: 0,
+    whiteSpace: 'pre',
+    color: '#000',
+  };
 
   return (
-    <>
+    <div style={{
+      background: '#fff',
+      width: 302,           /* 80mm at 96dpi */
+      margin: '0 auto',
+      padding: '14px 10px',
+      boxSizing: 'border-box',
+      fontFamily: "'Courier New', Courier, monospace",
+      color: '#000',
+    }}>
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          .receipt-print-root { display: block !important; position: fixed; inset: 0; background: #fff; overflow: auto; }
+          @page { size: 80mm auto; margin: 0; }
         }
       `}</style>
-      <div
-        className="receipt-print-root"
-        style={{ background: '#fff', color: '#111', fontFamily: "'Courier New', Courier, monospace", fontSize: 13, padding: '20px 20px 14px' }}
-      >
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: 3, marginBottom: 2 }}>TUATAK SHABU</div>
-          <div style={{ fontSize: 11, color: '#6b7280', lineHeight: 1.6 }}>
-            หน้าปั้ม ปตท. ถนนเส้นแจ้งพัฒนา จ.ปราจีนบุรี<br />
-            โทร: 095-395-5532
-          </div>
-        </div>
 
-        {solidLine}
+      {/* Header */}
+      <pre style={{ ...pre, textAlign: 'center', fontWeight: 'bold', fontSize: 15, letterSpacing: 2, marginBottom: 2 }}>TUATAK SHABU</pre>
+      <pre style={{ ...pre, textAlign: 'center', fontSize: 11 }}>หน้าปั้ม ปตท. เส้นแจ้งพัฒนา</pre>
+      <pre style={{ ...pre, textAlign: 'center', fontSize: 11 }}>จ.ปราจีนบุรี  095-395-5532</pre>
+      <pre style={pre}>{divider('=')}</pre>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
-          <span style={{ color: '#6b7280' }}>โต๊ะ</span>
-          <span style={{ fontWeight: 700 }}>{tableNumber}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
-          <span style={{ color: '#6b7280' }}>วันที่</span>
-          <span>{dateStr}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-          <span style={{ color: '#6b7280' }}>เวลา</span>
-          <span>{timeStr}</span>
-        </div>
+      {/* Info */}
+      <pre style={pre}>{padLine('โต๊ะ', tableNumber)}</pre>
+      <pre style={pre}>{padLine('วันที่', dateStr)}</pre>
+      <pre style={pre}>{padLine('เวลา', timeStr)}</pre>
+      <pre style={pre}>{divider()}</pre>
 
-        {dashedLine}
+      {/* Food items */}
+      {aggregatedItems.length > 0 && (
+        <>
+          <pre style={{ ...pre, fontWeight: 'bold' }}>{centerText('-- รายการอาหาร --')}</pre>
+          {aggregatedItems.map(item => {
+            const name = item.nameTh.length > 18 ? item.nameTh.slice(0, 17) + '.' : item.nameTh;
+            const qty = `x${item.quantity}`;
+            const amt = `${(item.price * item.quantity).toLocaleString()}`;
+            const mid = CHARS - name.length - amt.length;
+            const line = name + ' '.repeat(Math.max(1, mid - qty.length)) + qty + ' '.repeat(0) + amt;
+            return <pre key={item.id} style={pre}>{line}</pre>;
+          })}
+          <pre style={pre}>{padLine('รวมอาหาร', `${foodTotal.toLocaleString()}`)}</pre>
+          <pre style={pre}>{divider()}</pre>
+        </>
+      )}
 
-        {/* Food items */}
-        {aggregatedItems.length > 0 && (
-          <>
-            <div style={{ fontWeight: 700, fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>รายการอาหาร</div>
-            {aggregatedItems.map(item => (
-              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12, gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nameTh}</span>
-                <span style={{ color: '#6b7280', flexShrink: 0 }}>x{item.quantity}</span>
-                <span style={{ flexShrink: 0, fontWeight: 500 }}>฿{(item.price * item.quantity).toLocaleString()}</span>
-              </div>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 4, borderTop: '1px dotted #d1d5db', fontSize: 12 }}>
-              <span style={{ color: '#6b7280' }}>รวมอาหาร</span>
-              <span style={{ fontWeight: 600 }}>฿{foodTotal.toLocaleString()}</span>
-            </div>
-            {dashedLine}
-          </>
-        )}
+      {/* Buffet */}
+      {bill && billTotal > 0 && (
+        <>
+          <pre style={{ ...pre, fontWeight: 'bold' }}>{centerText('-- บุฟเฟ่ต์ --')}</pre>
+          {bill.adultCount > 0 && (
+            <pre style={pre}>{padLine(`ผู้ใหญ่ ${bill.adultCount}x${bill.adultPrice}`, `${(bill.adultCount * bill.adultPrice).toLocaleString()}`)}</pre>
+          )}
+          {bill.child120Count > 0 && (
+            <pre style={pre}>{padLine(`เด็ก>120 ${bill.child120Count}x${bill.child120Price}`, `${(bill.child120Count * bill.child120Price).toLocaleString()}`)}</pre>
+          )}
+          {bill.child100Count > 0 && (
+            <pre style={pre}>{padLine(`เด็กเล็ก ${bill.child100Count} คน`, 'ฟรี')}</pre>
+          )}
+          {bill.drinkRefillCount > 0 && (
+            <pre style={pre}>{padLine(`รีฟิล ${bill.drinkRefillCount}x${bill.drinkRefillPrice}`, `${(bill.drinkRefillCount * bill.drinkRefillPrice).toLocaleString()}`)}</pre>
+          )}
+          <pre style={pre}>{padLine('รวมบุฟเฟ่ต์', `${billTotal.toLocaleString()}`)}</pre>
+          <pre style={pre}>{divider()}</pre>
+        </>
+      )}
 
-        {/* Buffet */}
-        {bill && billTotal > 0 && (
-          <>
-            <div style={{ fontWeight: 700, fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>บุฟเฟ่ต์</div>
-            {bill.adultCount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
-                <span>ผู้ใหญ่ {bill.adultCount} คน × ฿{bill.adultPrice}</span>
-                <span style={{ fontWeight: 500 }}>฿{(bill.adultCount * bill.adultPrice).toLocaleString()}</span>
-              </div>
-            )}
-            {bill.child120Count > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
-                <span>เด็ก (&gt;120cm) {bill.child120Count} คน × ฿{bill.child120Price}</span>
-                <span style={{ fontWeight: 500 }}>฿{(bill.child120Count * bill.child120Price).toLocaleString()}</span>
-              </div>
-            )}
-            {bill.child100Count > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
-                <span>เด็กเล็ก (100–120cm) {bill.child100Count} คน</span>
-                <span style={{ fontWeight: 500, color: '#6b7280' }}>ฟรี</span>
-              </div>
-            )}
-            {bill.drinkRefillCount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
-                <span>เครื่องดื่มรีฟิล {bill.drinkRefillCount} แก้ว × ฿{bill.drinkRefillPrice}</span>
-                <span style={{ fontWeight: 500 }}>฿{(bill.drinkRefillCount * bill.drinkRefillPrice).toLocaleString()}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 4, borderTop: '1px dotted #d1d5db', fontSize: 12 }}>
-              <span style={{ color: '#6b7280' }}>รวมบุฟเฟ่ต์</span>
-              <span style={{ fontWeight: 600 }}>฿{billTotal.toLocaleString()}</span>
-            </div>
-            {dashedLine}
-          </>
-        )}
+      {/* Grand total */}
+      <pre style={{ ...pre, fontWeight: 'bold', fontSize: 14 }}>{padLine('รวมทั้งหมด', `${grandTotal.toLocaleString()} บาท`)}</pre>
+      <pre style={pre}>{divider('=')}</pre>
+      <pre style={{ ...pre, textAlign: 'center' }}>{centerText('** ชำระเงินแล้ว **')}</pre>
 
-        {/* Grand total */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: '2px solid #111', borderBottom: '2px solid #111' }}>
-          <span style={{ fontSize: 15, fontWeight: 900 }}>รวมทั้งหมด</span>
-          <span style={{ fontSize: 18, fontWeight: 900 }}>฿{grandTotal.toLocaleString()}</span>
-        </div>
+      {/* QR loyalty */}
+      {(qrUrl || qrCode) && qrPoints > 0 && (
+        <>
+          <pre style={pre}>{divider()}</pre>
+          <pre style={{ ...pre, textAlign: 'center', fontWeight: 'bold' }}>{centerText('* สะสมแต้มลอยัลตี้ *')}</pre>
+          <pre style={{ ...pre, textAlign: 'center' }}>{centerText(`รับ ${qrPoints} แต้ม`)}</pre>
+          <pre style={{ ...pre, textAlign: 'center', fontSize: 10 }}>{centerText(`ใช้ได้${qrMaxUses > 0 ? `${qrMaxUses} คน` : 'ไม่จำกัด'} | หมดใน ${qrHours} ชม.`)}</pre>
+          {qrUrl
+            ? <img src={qrUrl} alt="QR" style={{ width: 140, height: 140, display: 'block', margin: '8px auto' }} />
+            : <div style={{ textAlign: 'center', fontSize: 10, padding: '8px 0', fontFamily: 'Courier New' }}>กำลังโหลด QR...</div>
+          }
+          <pre style={pre}>{divider()}</pre>
+        </>
+      )}
 
-        <div style={{ textAlign: 'center', fontSize: 11, color: '#9ca3af', margin: '10px 0 4px' }}>ชำระเงินเรียบร้อย ✓</div>
-
-        {/* QR Code */}
-        {(qrUrl || qrCode) && qrPoints > 0 && (
-          <>
-            {dashedLine}
-            <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>⭐ สะสมแต้มลอยัลตี้</div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10, lineHeight: 1.6 }}>
-                รับ <b style={{ color: '#000' }}>{qrPoints} แต้ม</b> · ใช้ได้{qrMaxUses > 0 ? ` ${qrMaxUses} คน` : 'ไม่จำกัด'}<br />
-                หมดอายุใน {qrHours} ชั่วโมง · สแกนได้คนละ 1 ครั้ง
-              </div>
-              {qrUrl
-                ? <img src={qrUrl} alt="QR" style={{ width: 160, height: 160, display: 'block', margin: '0 auto', borderRadius: 8, border: '2px solid #e5e7eb', padding: 4 }} />
-                : <div style={{ width: 160, height: 160, background: '#f3f4f6', borderRadius: 8, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#9ca3af' }}>กำลังโหลด...</div>
-              }
-            </div>
-            {dashedLine}
-          </>
-        )}
-
-        {/* Footer */}
-        <div style={{ textAlign: 'center', fontSize: 11, color: '#9ca3af', marginTop: 10, lineHeight: 1.8 }}>
-          ขอบคุณที่ใช้บริการ 🙏<br />
-          <span style={{ letterSpacing: 2 }}>TUATAK SHABU</span>
-        </div>
-      </div>
-    </>
+      {/* Footer */}
+      <pre style={{ ...pre, textAlign: 'center', marginTop: 4 }}>{centerText('ขอบคุณที่ใช้บริการ')}</pre>
+      <pre style={{ ...pre, textAlign: 'center', letterSpacing: 3 }}>{centerText('TUATAK SHABU')}</pre>
+    </div>
   );
 }
