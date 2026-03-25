@@ -31,8 +31,8 @@ async function printBluetooth(data: ReceiptData | null) {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'พิมพ์ Bluetooth สำเร็จ', showConfirmButton: false, timer: 2000, timerProgressBar: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (!msg.includes('cancelled') && !msg.includes('User cancelled')) {
-      Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Bluetooth พิมพ์ไม่สำเร็จ', text: msg, showConfirmButton: false, timer: 3500 });
+    if (!msg.toLowerCase().includes('cancel')) {
+      Swal.fire({ icon: 'error', title: 'Bluetooth พิมพ์ไม่สำเร็จ', text: msg, confirmButtonColor: '#2563eb', confirmButtonText: 'ตกลง' });
     }
   }
 }

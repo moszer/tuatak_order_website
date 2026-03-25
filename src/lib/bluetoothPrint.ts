@@ -1,12 +1,18 @@
 // Web Bluetooth ESC/POS printing utility
-// Supports BLE thermal printers via Nordic UART Service (NUS)
 // Works on: Chrome/Edge on Android & Desktop — NOT iOS Safari
 
-// Common BLE services for thermal printers
-const NUS_SERVICE  = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'; // Nordic UART
-const NUS_RX_CHAR  = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // write to printer
-const ALT_SERVICE  = '000018f0-0000-1000-8000-00805f9b34fb'; // alternative (some Chinese printers)
-const ALT_RX_CHAR  = '00002af1-0000-1000-8000-00805f9b34fb';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type BLEChar   = any;
+type BLEServer = any;
+
+// Known BLE printer service/characteristic pairs (tried in order)
+const BLE_PROFILES = [
+  { service: '6e400001-b5a3-f393-e0a9-e50e24dcca9e', rx: '6e400002-b5a3-f393-e0a9-e50e24dcca9e' }, // Nordic UART
+  { service: '000018f0-0000-1000-8000-00805f9b34fb', rx: '00002af1-0000-1000-8000-00805f9b34fb' }, // common Chinese
+  { service: 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', rx: 'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f' }, // Epson/Star BLE
+  { service: '49535343-fe7d-4ae5-8fa9-9fafd205e455', rx: '49535343-8841-43f4-a8d4-ecbe34729bb3' }, // ISSC BLE Serial
+  { service: '0000ff00-0000-1000-8000-00805f9b34fb', rx: '0000ff02-0000-1000-8000-00805f9b34fb' }, // some Chinese printers
+];
 
 const CHUNK = 200; // bytes per BLE write (conservative MTU)
 const DELAY = 50;  // ms between chunks
@@ -161,50 +167,69 @@ export function buildBTEscPos(d: BTPrintData, appUrl = ''): Uint8Array {
   return b.build();
 }
 
-async function getWriteCharacteristic(server: BluetoothRemoteGATTServer): Promise<BluetoothRemoteGATTCharacteristic> {
-  // Try NUS first
-  try {
-    const svc = await server.getPrimaryService(NUS_SERVICE);
-    return await svc.getCharacteristic(NUS_RX_CHAR);
-  } catch { /* try next */ }
-
-  // Try alternative service
-  try {
-    const svc = await server.getPrimaryService(ALT_SERVICE);
-    return await svc.getCharacteristic(ALT_RX_CHAR);
-  } catch { /* try next */ }
-
-  // Try to find any writable characteristic
-  const services = await server.getPrimaryServices();
-  for (const svc of services) {
-    const chars = await svc.getCharacteristics();
-    for (const c of chars) {
-      if (c.properties.write || c.properties.writeWithoutResponse) return c;
-    }
-  }
-  throw new Error('ไม่พบ characteristic สำหรับพิมพ์ในเครื่องนี้');
-}
-
-export async function printViaBluetooth(data: Uint8Array): Promise<void> {
-  if (!navigator.bluetooth) {
-    throw new Error('เบราว์เซอร์นี้ไม่รองรับ Web Bluetooth (ใช้ Chrome/Edge บน Android หรือ Desktop)');
-  }
-
-  const device = await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: [NUS_SERVICE, ALT_SERVICE],
-  });
-
-  const server = await device.gatt!.connect();
-  const char = await getWriteCharacteristic(server);
-
-  const writeMethod = char.properties.writeWithoutResponse ? 'writeValueWithoutResponse' : 'writeValueWithResponse';
+async function writeChunked(char: BLEChar, data: Uint8Array): Promise<void> {
+  const c = char;
+  const useNoResponse = char.properties.writeWithoutResponse;
 
   for (let i = 0; i < data.length; i += CHUNK) {
     const chunk = data.slice(i, i + CHUNK);
-    await (char as unknown as Record<string, (v: Uint8Array) => Promise<void>>)[writeMethod](chunk);
+    if (useNoResponse && c.writeValueWithoutResponse) {
+      await c.writeValueWithoutResponse(chunk);
+    } else if (c.writeValueWithResponse) {
+      await c.writeValueWithResponse(chunk);
+    } else {
+      await c.writeValue(chunk); // deprecated fallback
+    }
     if (i + CHUNK < data.length) await new Promise(r => setTimeout(r, DELAY));
   }
+}
 
-  device.gatt!.disconnect();
+async function getWriteCharacteristic(server: BLEServer): Promise<BLEChar> {
+  // Try known profiles
+  for (const profile of BLE_PROFILES) {
+    try {
+      const svc = await server.getPrimaryService(profile.service);
+      const char = await svc.getCharacteristic(profile.rx);
+      return char;
+    } catch { /* try next */ }
+  }
+
+  // Fallback: scan all services for any writable characteristic
+  try {
+    const services = await server.getPrimaryServices();
+    for (const svc of services) {
+      try {
+        const chars = await svc.getCharacteristics();
+        for (const c of chars) {
+          if (c.properties.write || c.properties.writeWithoutResponse) return c;
+        }
+      } catch { /* continue */ }
+    }
+  } catch { /* ignore */ }
+
+  throw new Error('ไม่พบ characteristic สำหรับพิมพ์ — กรุณาตรวจสอบว่าเครื่องปริ้นรองรับ BLE');
+}
+
+export async function printViaBluetooth(data: Uint8Array): Promise<void> {
+  if (!('bluetooth' in navigator)) {
+    throw new Error('เบราว์เซอร์นี้ไม่รองรับ Web Bluetooth\nกรุณาใช้ Chrome หรือ Edge บน Android / Desktop');
+  }
+
+  const serviceUUIDs = BLE_PROFILES.map(p => p.service);
+
+  const bt = (navigator as any).bluetooth;
+  const device = await bt.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: serviceUUIDs,
+  });
+
+  if (!device.gatt) throw new Error('อุปกรณ์นี้ไม่รองรับ GATT');
+
+  const server = await device.gatt.connect();
+  await new Promise(r => setTimeout(r, 300)); // wait for connection to stabilize
+
+  const char = await getWriteCharacteristic(server);
+  await writeChunked(char, data);
+  await new Promise(r => setTimeout(r, 200));
+  device.gatt.disconnect();
 }
