@@ -97,14 +97,18 @@ function buildEscPos(d: PrintPayload): Buffer {
     push(line() + '\n');
     push(ALIGN_CENTER + BOLD_ON + '-- บุฟเฟ่ต์ --' + BOLD_OFF + '\n');
     push(ALIGN_LEFT);
+    const billItem = (label: string, amount: string) => {
+      push(label + '\n');
+      push(rAlign(amount) + '\n');
+    };
     if (d.bill.adultCount > 0)
-      push(pad(`ผู้ใหญ่  ${d.bill.adultCount} คน x ${d.bill.adultPrice}`, (d.bill.adultCount * d.bill.adultPrice).toLocaleString()) + '\n');
+      billItem(`ผู้ใหญ่  ${d.bill.adultCount} คน x ${d.bill.adultPrice}`, (d.bill.adultCount * d.bill.adultPrice).toLocaleString());
     if (d.bill.child120Count > 0)
-      push(pad(`เด็ก(>120)  ${d.bill.child120Count} คน x ${d.bill.child120Price}`, (d.bill.child120Count * d.bill.child120Price).toLocaleString()) + '\n');
+      billItem(`เด็ก(>120)  ${d.bill.child120Count} คน x ${d.bill.child120Price}`, (d.bill.child120Count * d.bill.child120Price).toLocaleString());
     if (d.bill.child100Count > 0)
-      push(pad(`เด็กเล็ก  ${d.bill.child100Count} คน`, 'ฟรี') + '\n');
+      billItem(`เด็กเล็ก  ${d.bill.child100Count} คน`, 'ฟรี');
     if (d.bill.drinkRefillCount > 0)
-      push(pad(`รีฟิล  ${d.bill.drinkRefillCount} แก้ว x ${d.bill.drinkRefillPrice}`, (d.bill.drinkRefillCount * d.bill.drinkRefillPrice).toLocaleString()) + '\n');
+      billItem(`รีฟิล  ${d.bill.drinkRefillCount} แก้ว x ${d.bill.drinkRefillPrice}`, (d.bill.drinkRefillCount * d.bill.drinkRefillPrice).toLocaleString());
     push(line('-') + '\n');
     push(BOLD_ON + pad('รวมบุฟเฟ่ต์', d.billTotal.toLocaleString()) + BOLD_OFF + '\n');
   }
