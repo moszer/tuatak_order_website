@@ -1300,7 +1300,7 @@ export default function OrdersPage() {
                 html, body { background: #fff !important; }
                 body * { visibility: hidden !important; }
                 #receipt-print-content, #receipt-print-content * { visibility: visible !important; }
-                #receipt-print-content { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; background: #fff !important; }
+                #receipt-print-content { position: fixed !important; top: 0 !important; left: 50% !important; transform: translateX(-50%) !important; width: 302px !important; background: #fff !important; }
               }
             `}</style>
             <div id="receipt-print-content">
