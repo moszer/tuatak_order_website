@@ -1297,9 +1297,10 @@ export default function OrdersPage() {
             <style>{`
               @media print {
                 @page { size: 80mm auto; margin: 0; }
+                html, body { background: #fff !important; }
                 body * { visibility: hidden !important; }
                 #receipt-print-content, #receipt-print-content * { visibility: visible !important; }
-                #receipt-print-content { position: fixed !important; top: 0 !important; left: 0 !important; }
+                #receipt-print-content { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; background: #fff !important; }
               }
             `}</style>
             <div id="receipt-print-content">
