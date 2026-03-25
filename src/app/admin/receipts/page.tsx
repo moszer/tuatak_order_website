@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Swal from 'sweetalert2';
 import ReceiptContent, { ReceiptData } from '@/app/admin/components/ReceiptContent';
 
 interface ReceiptRow {
@@ -48,9 +49,13 @@ async function printToPOS(data: ReceiptData | null) {
       }),
     });
     const json = await res.json();
-    if (!json.ok) alert('พิมพ์ไม่สำเร็จ: ' + json.error);
+    if (json.ok) {
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'พิมพ์สำเร็จ', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+    } else {
+      Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'พิมพ์ไม่สำเร็จ', text: json.error, showConfirmButton: false, timer: 3500 });
+    }
   } catch {
-    alert('เชื่อมต่อ POS printer ไม่ได้');
+    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'เชื่อมต่อ POS printer ไม่ได้', showConfirmButton: false, timer: 3500 });
   }
 }
 
