@@ -31,6 +31,8 @@ async function printToPOS(data: ReceiptData | null) {
       body: JSON.stringify({
         ...data,
         paidAt: data.paidAt instanceof Date ? data.paidAt.toISOString() : data.paidAt,
+        printerHost: localStorage.getItem('pos_printer_host') || undefined,
+        printerPort: localStorage.getItem('pos_printer_port') ? Number(localStorage.getItem('pos_printer_port')) : undefined,
       }),
     });
     const json = await res.json();

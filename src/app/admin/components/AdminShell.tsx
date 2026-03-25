@@ -120,13 +120,21 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [showPrinterModal, setShowPrinterModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordError, setPasswordError] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [printerForm, setPrinterForm] = useState({ host: '172.20.10.6', port: '9100' });
 
   const currentPageTitle = PAGE_TITLES[pathname] ?? 'Admin';
+
+  useEffect(() => {
+    const host = localStorage.getItem('pos_printer_host');
+    const port = localStorage.getItem('pos_printer_port');
+    if (host || port) setPrinterForm({ host: host || '172.20.10.6', port: port || '9100' });
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -344,6 +352,16 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                   <button
                     className="shell-nav-item"
                     style={{ borderRadius:0, fontSize:'0.82rem', gap:'10px' }}
+                    onClick={() => { setShowPrinterModal(true); setShowUserMenu(false); }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                    </svg>
+                    <span>ตั้งค่าเครื่องปริ้น</span>
+                  </button>
+                  <button
+                    className="shell-nav-item"
+                    style={{ borderRadius:0, fontSize:'0.82rem', gap:'10px' }}
                     onClick={() => { setShowChangePasswordModal(true); setShowUserMenu(false); }}
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -418,6 +436,76 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </div>
         </main>
       </div>
+
+      {/* ── Printer Settings Modal ── */}
+      {showPrinterModal && (
+        <div
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}
+          onClick={() => setShowPrinterModal(false)}
+        >
+          <div
+            style={{ background:'#0d1117', borderRadius:'12px', padding:'28px', maxWidth:'420px', width:'100%', border:'1px solid #1e293b', boxShadow:'0 24px 64px rgba(0,0,0,0.6)', animation:'shell-fade 0.2s ease' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px' }}>
+              <div>
+                <h2 style={{ color:'#f1f5f9', fontSize:'1.1rem', fontWeight:700, margin:0 }}>ตั้งค่าเครื่องปริ้น</h2>
+                <p style={{ color:'#475569', fontSize:'0.8rem', margin:'4px 0 0' }}>POS Thermal Printer (ESC/POS)</p>
+              </div>
+              <button
+                onClick={() => setShowPrinterModal(false)}
+                style={{ background:'#1e293b', border:'none', borderRadius:'6px', width:'30px', height:'30px', color:'#64748b', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div style={{ marginBottom:'16px' }}>
+              <label style={{ display:'block', color:'#64748b', fontSize:'0.78rem', fontWeight:600, marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                IP Address
+              </label>
+              <input
+                className="shell-input"
+                value={printerForm.host}
+                onChange={(e) => setPrinterForm({ ...printerForm, host: e.target.value })}
+                placeholder="เช่น 192.168.1.100"
+              />
+            </div>
+
+            <div style={{ marginBottom:'24px' }}>
+              <label style={{ display:'block', color:'#64748b', fontSize:'0.78rem', fontWeight:600, marginBottom:'6px', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                Port
+              </label>
+              <input
+                className="shell-input"
+                value={printerForm.port}
+                onChange={(e) => setPrinterForm({ ...printerForm, port: e.target.value })}
+                placeholder="9100"
+                type="number"
+              />
+            </div>
+
+            <div style={{ background:'rgba(16,185,129,0.06)', border:'1px solid rgba(16,185,129,0.15)', borderRadius:'8px', padding:'10px 14px', marginBottom:'24px', fontSize:'0.78rem', color:'#10b981' }}>
+              ค่าปัจจุบัน: <b>{localStorage.getItem('pos_printer_host') || '172.20.10.6'}</b> : <b>{localStorage.getItem('pos_printer_port') || '9100'}</b>
+            </div>
+
+            <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end' }}>
+              <button className="shell-btn-ghost" onClick={() => setShowPrinterModal(false)}>ยกเลิก</button>
+              <button
+                className="shell-btn-primary"
+                onClick={() => {
+                  localStorage.setItem('pos_printer_host', printerForm.host.trim());
+                  localStorage.setItem('pos_printer_port', printerForm.port.trim());
+                  setShowPrinterModal(false);
+                  Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกการตั้งค่าแล้ว', showConfirmButton: false, timer: 2000 });
+                }}
+              >
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Change Password Modal ── */}
       {showChangePasswordModal && (

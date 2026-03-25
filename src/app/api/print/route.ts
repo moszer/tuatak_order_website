@@ -26,6 +26,8 @@ function pad(left: string, right: string): string {
 function line(char = '-'): string { return char.repeat(CHARS); }
 
 interface PrintPayload {
+  printerHost?: string;
+  printerPort?: number;
   tableNumber: string;
   paidAt: string;
   aggregatedItems: { nameTh: string; price: number; quantity: number }[];
@@ -159,7 +161,7 @@ function buildEscPos(d: PrintPayload): Buffer {
   return Buffer.concat(buf);
 }
 
-function sendToPrinter(data: Buffer): Promise<void> {
+function sendToPrinter(data: Buffer, host = PRINTER_HOST, port = PRINTER_PORT): Promise<void> {
   return new Promise((resolve, reject) => {
     const client = new net.Socket();
     const timeout = setTimeout(() => {
@@ -167,7 +169,7 @@ function sendToPrinter(data: Buffer): Promise<void> {
       reject(new Error('Printer connection timeout'));
     }, 6000);
 
-    client.connect(PRINTER_PORT, PRINTER_HOST, () => {
+    client.connect(port, host, () => {
       client.write(data, (err) => {
         if (err) { clearTimeout(timeout); client.destroy(); reject(err); return; }
         client.end();
@@ -182,8 +184,10 @@ function sendToPrinter(data: Buffer): Promise<void> {
 export async function POST(req: NextRequest) {
   try {
     const payload: PrintPayload = await req.json();
+    const host = payload.printerHost?.trim() || PRINTER_HOST;
+    const port = payload.printerPort || PRINTER_PORT;
     const escData = buildEscPos(payload);
-    await sendToPrinter(escData);
+    await sendToPrinter(escData, host, port);
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
