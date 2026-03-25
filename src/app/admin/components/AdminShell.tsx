@@ -247,6 +247,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         .shell-btn-ghost { padding:10px 20px; border-radius:8px; border:1px solid #1e293b; background:transparent; color:#64748b; font-size:0.875rem; font-weight:500; cursor:pointer; transition:all 0.15s; font-family:inherit; }
         .shell-btn-ghost:hover:not(:disabled) { border-color:#334155; color:#94a3b8; }
         .shell-btn-ghost:disabled { opacity:0.5; cursor:not-allowed; }
+        .swal2-container { z-index: 99999 !important; }
       `}</style>
 
       {/* ── Sidebar ── */}
