@@ -21,19 +21,6 @@ interface OrderWithId extends Order {
 }
 
 
-function printReceiptEl(el: HTMLElement | null) {
-  if (!el) return;
-  const win = window.open('', '_blank', 'width=380,height=700');
-  if (!win) return;
-  win.document.write(
-    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-    '<style>@page{size:80mm auto;margin:0}body{margin:0;padding:0}</style>' +
-    '</head><body>' + el.innerHTML + '</body></html>'
-  );
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 400);
-}
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithId[]>([]);
@@ -1307,12 +1294,20 @@ export default function OrdersPage() {
             onClick={e => e.stopPropagation()}
             style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 400, maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}
           >
+            <style>{`
+              @media print {
+                @page { size: 80mm auto; margin: 0; }
+                body * { visibility: hidden !important; }
+                #receipt-print-content, #receipt-print-content * { visibility: visible !important; }
+                #receipt-print-content { position: fixed !important; top: 0 !important; left: 0 !important; }
+              }
+            `}</style>
             <div id="receipt-print-content">
               <ReceiptContent data={receiptData} />
             </div>
             <div style={{ display: 'flex', gap: 10, padding: '0 20px 20px', background: '#fff' }}>
               <button
-                onClick={() => printReceiptEl(document.getElementById('receipt-print-content'))}
+                onClick={() => window.print()}
                 style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: '#111827', color: '#f9fafb', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
