@@ -79,12 +79,6 @@ export default function ReceiptContent({ data }: { data: ReceiptData }) {
       fontFamily: "'Courier New', Courier, monospace",
       color: '#000',
     }}>
-      <style>{`
-        @media print {
-          @page { size: 80mm auto; margin: 0; }
-        }
-      `}</style>
-
       {/* Header */}
       <pre style={{ ...pre, textAlign: 'center', fontWeight: 'bold', fontSize: 15, letterSpacing: 2, marginBottom: 2 }}>TUATAK SHABU</pre>
       <pre style={{ ...pre, textAlign: 'center', fontSize: 11 }}>หน้าปั้ม ปตท. เส้นแจ้งพัฒนา</pre>
