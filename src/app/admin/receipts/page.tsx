@@ -53,12 +53,12 @@ async function printToPOS(data: ReceiptData | null) {
     });
     const json = await res.json();
     if (json.ok) {
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'พิมพ์สำเร็จ', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+      Swal.fire({ icon: 'success', title: 'พิมพ์สำเร็จ', showConfirmButton: false, timer: 2000, timerProgressBar: true });
     } else {
-      Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'พิมพ์ไม่สำเร็จ', text: json.error, showConfirmButton: false, timer: 3500 });
+      Swal.fire({ icon: 'error', title: 'พิมพ์ไม่สำเร็จ', text: json.error, confirmButtonText: 'ตกลง' });
     }
   } catch {
-    Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'เชื่อมต่อ POS printer ไม่ได้', showConfirmButton: false, timer: 3500 });
+    Swal.fire({ icon: 'error', title: 'เชื่อมต่อ POS printer ไม่ได้', confirmButtonText: 'ตกลง' });
   }
 }
 
