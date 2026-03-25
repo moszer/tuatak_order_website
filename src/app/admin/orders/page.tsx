@@ -22,6 +22,24 @@ interface OrderWithId extends Order {
 
 
 
+async function printToPOS(data: ReceiptData | null) {
+  if (!data) return;
+  try {
+    const res = await fetch('/api/print', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...data,
+        paidAt: data.paidAt instanceof Date ? data.paidAt.toISOString() : data.paidAt,
+      }),
+    });
+    const json = await res.json();
+    if (!json.ok) alert('พิมพ์ไม่สำเร็จ: ' + json.error);
+  } catch {
+    alert('เชื่อมต่อ POS printer ไม่ได้');
+  }
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithId[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -1306,17 +1324,24 @@ export default function OrdersPage() {
             <div id="receipt-print-content">
               <ReceiptContent data={receiptData} />
             </div>
-            <div style={{ display: 'flex', gap: 10, padding: '0 20px 20px', background: '#fff' }}>
+            <div style={{ display: 'flex', gap: 8, padding: '0 20px 20px', background: '#fff', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => printToPOS(receiptData)}
+                style={{ flex: 1, minWidth: 120, padding: '11px 0', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+                POS Printer
+              </button>
               <button
                 onClick={() => window.print()}
-                style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: '#111827', color: '#f9fafb', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ flex: 1, minWidth: 120, padding: '11px 0', borderRadius: 8, border: 'none', background: '#111827', color: '#f9fafb', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                พิมพ์ใบเสร็จ
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                พิมพ์
               </button>
               <button
                 onClick={() => setReceiptData(null)}
-                style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: '1px solid #e5e7eb', background: 'transparent', color: '#6b7280', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                style={{ flex: 1, minWidth: 80, padding: '11px 0', borderRadius: 8, border: '1px solid #e5e7eb', background: 'transparent', color: '#6b7280', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 ปิด
               </button>
