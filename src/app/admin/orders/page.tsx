@@ -5,6 +5,7 @@ import { Order } from '@/lib/mysql';
 import Swal from 'sweetalert2';
 import QRCode from 'qrcode';
 import ReceiptContent, { ReceiptData } from '@/app/admin/components/ReceiptContent';
+import { buildBTEscPos, printViaBluetooth } from '@/lib/bluetoothPrint';
 
 interface OrderWithId extends Order {
   _id: string;
@@ -21,6 +22,20 @@ interface OrderWithId extends Order {
 }
 
 
+
+async function printBluetooth(data: ReceiptData | null) {
+  if (!data) return;
+  try {
+    const escData = buildBTEscPos({ ...data }, window.location.origin);
+    await printViaBluetooth(escData);
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'พิมพ์ Bluetooth สำเร็จ', showConfirmButton: false, timer: 2000, timerProgressBar: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes('cancelled') && !msg.includes('User cancelled')) {
+      Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Bluetooth พิมพ์ไม่สำเร็จ', text: msg, showConfirmButton: false, timer: 3500 });
+    }
+  }
+}
 
 async function printToPOS(data: ReceiptData | null) {
   if (!data) return;
@@ -1333,10 +1348,17 @@ export default function OrdersPage() {
             <div style={{ display: 'flex', gap: 8, padding: '0 20px 20px', background: '#fff', flexWrap: 'wrap' }}>
               <button
                 onClick={() => printToPOS(receiptData)}
-                style={{ flex: 1, minWidth: 120, padding: '11px 0', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ flex: 1, minWidth: 110, padding: '11px 0', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-                POS Printer
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+                POS
+              </button>
+              <button
+                onClick={() => printBluetooth(receiptData)}
+                style={{ flex: 1, minWidth: 110, padding: '11px 0', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></svg>
+                Bluetooth
               </button>
               <button
                 onClick={() => window.print()}
